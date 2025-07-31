@@ -15,11 +15,11 @@ def main():
     parser = argparse.ArgumentParser(description="MCTS Conversation Planning")
     parser.add_argument("--provider", choices=["openai", "ollama", "mock"], 
                        default="mock", help="LLM provider to use")
-    parser.add_argument("--agent1-model", default="gpt-3.5-turbo", 
+    parser.add_argument("--agent1-model", default="llama3.3:latest", 
                        help="Model for Agent 1")
-    parser.add_argument("--agent2-model", default="gpt-3.5-turbo", 
+    parser.add_argument("--agent2-model", default="llama3.3:latest", 
                        help="Model for Agent 2")
-    parser.add_argument("--ollama-host", default="http://localhost:11434",
+    parser.add_argument("--ollama-host", default="http://ollama-brewster:80",
                        help="Ollama server host")
     parser.add_argument("--prompt", default="What are your thoughts on artificial intelligence?",
                        help="Initial prompt from Agent 1")
@@ -31,6 +31,8 @@ def main():
                        help="Maximum conversation depth")
     parser.add_argument("--reward", choices=["length", "words", "composite"],
                        default="length", help="Reward function to use")
+    parser.add_argument("--log-mcts", action="store_true",
+                       help="Enable detailed MCTS search logging")
     
     args = parser.parse_args()
     
@@ -98,7 +100,8 @@ def main():
         max_depth=args.depth,
         num_simulations=args.simulations,
         exploration_constant=1.414,  # sqrt(2)
-        temperature=0.7
+        temperature=0.7,
+        enable_detailed_logging=args.log_mcts
     )
     
     print(f"\nConfiguration:")
@@ -118,7 +121,11 @@ def main():
             return
         
         print(f"\nResults (ranked by score):")
-        print("=" * 60)
+        print("\n[DEBUG] Candidate responses generated:")
+        for idx, cand in enumerate(results):
+            print(f"  Candidate {idx+1}: {cand[0]!r}")
+        print()
+        results.sort(key=lambda x: x[1], reverse=True)
         
         for i, (candidate, score) in enumerate(results, 1):
             print(f"\nRank {i} (Score: {score:.4f})")

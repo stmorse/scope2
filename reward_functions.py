@@ -19,7 +19,7 @@ class RewardFunction(ABC):
 class Agent1LengthReward(RewardFunction):
     """Reward function based on the length of Agent 1 responses."""
     
-    def __init__(self, normalize: bool = True, max_length: int = 1000):
+    def __init__(self, normalize: bool = False, max_length: int = 1000):  # Default: no normalization
         """
         Initialize length-based reward function.
         
@@ -48,7 +48,7 @@ class Agent1LengthReward(RewardFunction):
 class Agent1WordCountReward(RewardFunction):
     """Reward function based on word count of Agent 1 responses."""
     
-    def __init__(self, normalize: bool = True, max_words: int = 200):
+    def __init__(self, normalize: bool = False, max_words: int = 200):  # Default: no normalization
         """
         Initialize word count-based reward function.
         
@@ -127,5 +127,7 @@ class CompositeReward(RewardFunction):
         return total_reward
 
 
-# Default reward function (Agent 1 length)
-DEFAULT_REWARD_FUNCTION = Agent1LengthReward(normalize=True, max_length=1000)
+# Default reward function (Agent 1 length, raw)
+DEFAULT_REWARD_FUNCTION = Agent1LengthReward(normalize=False, max_length=1000)
+
+# NOTE: If you want to normalize rewards for ranking or display, do so after all simulations are complete.
