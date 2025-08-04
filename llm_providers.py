@@ -125,13 +125,11 @@ class MockProvider(LLMProvider):
     def generate_response(self, prompt: str, temperature: float = 0.7) -> str:
         """Return a mock response."""
         response = self.responses[self.call_count % len(self.responses)]
-        print(f"[DEBUG] MockProvider.generate_response called (call_count={self.call_count}) with prompt: {prompt!r}, temperature={temperature}. Returning: {response!r}")
         self.call_count += 1
         return response
     
     def generate_multiple_responses(self, prompt: str, num_responses: int, temperature: float = 0.7) -> List[str]:
         """Generate multiple mock responses."""
-        print(f"[DEBUG] MockProvider.generate_multiple_responses called with prompt: {prompt!r}, num_responses={num_responses}, temperature={temperature}")
         responses = []
         for _ in range(num_responses):
             responses.append(self.generate_response(prompt, temperature))

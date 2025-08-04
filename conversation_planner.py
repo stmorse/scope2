@@ -28,7 +28,6 @@ class ConversationPlanner:
             num_simulations: int = 100,
             exploration_constant: float = math.sqrt(2),
             temperature: float = 0.7,
-            enable_detailed_logging: bool = False
         ):
         """
         Initialize conversation planner.
@@ -41,7 +40,6 @@ class ConversationPlanner:
             num_simulations: Number of MCTS simulations to run
             exploration_constant: UCT exploration parameter
             temperature: Temperature for LLM generation
-            enable_detailed_logging: Enable detailed MCTS search logging
         """
         self.agent1_provider = agent1_provider
         self.agent2_provider = agent2_provider
@@ -50,11 +48,10 @@ class ConversationPlanner:
         self.num_simulations = num_simulations
         self.exploration_constant = exploration_constant
         self.temperature = temperature
-        self.enable_detailed_logging = enable_detailed_logging
         
         # Initialize logging
         self.logger = logging.getLogger('MCTS_ConversationPlanner')
-        if enable_detailed_logging and not self.logger.handlers:
+        if not self.logger.handlers:
             handler = logging.StreamHandler()
             formatter = logging.Formatter('%(message)s')
             handler.setFormatter(formatter)
@@ -77,7 +74,7 @@ class ConversationPlanner:
             num_candidates: Number of candidate responses to evaluate
             
         Returns:
-            List of (candidate_response, score) tuples, sorted by score descending
+            List of (candidate_response, score) tuples
         """
         print(f"Generating {num_candidates} candidate responses...")
         
@@ -86,39 +83,21 @@ class ConversationPlanner:
             initial_prompt, num_candidates, self.temperature
         )
         
-        if not candidates:
-            print("Warning: No candidates generated")
-            return []
-        
         print(f"Evaluating {len(candidates)} candidates with MCTS...")
-        
-        if self.enable_detailed_logging:
-            self._log_header("MCTS CONVERSATION PLANNING SESSION")
-            self._log_info(f"Initial prompt: \"{initial_prompt}\"")
-            self._log_info(f"Number of candidates: {len(candidates)}")
-            self._log_info(f"Simulations per candidate: {self.num_simulations}")
-            self._log_info(f"Max conversation depth: {self.max_depth}")
-            self._log_separator()
         
         # Evaluate each candidate using MCTS
         results = []
         for i, candidate in enumerate(candidates):
-            print(f"Evaluating candidate {i+1}/{len(candidates)}")
+            self._log_candidate_header(i+1, len(candidates), candidate)
             
             # Reset simulation counter for this candidate
             self.total_simulations_run = 0
-            
-            if self.enable_detailed_logging:
-                self._log_candidate_header(i+1, len(candidates), candidate)
-            
+                        
+            # run MCTS for this candidate
             score = self._evaluate_candidate(initial_prompt, candidate)
             results.append((candidate, score))
             
-            if self.enable_detailed_logging:
-                self._log_candidate_result(i+1, candidate, score)
-        
-        # Sort by score (descending)
-        results.sort(key=lambda x: x[1], reverse=True)
+            self._log_candidate_result(i+1, candidate, score)
         
         return results
     
@@ -142,26 +121,25 @@ class ConversationPlanner:
         
         # Create root node
         root = MCTSNode(initial_state)
+
+        print("[DEBUG] root: ", str(root))
         
         # Run MCTS simulations
-        if self.enable_detailed_logging:
-            self._log_info(f"Running {self.num_simulations} MCTS simulations...")
-        
+        self._log(f"Running {self.num_simulations} MCTS simulations...")
         for simulation in range(self.num_simulations):
-            if self.enable_detailed_logging:
-                self._log_simulation_header(simulation + 1)
+            self._log_simulation_header(simulation + 1)
             
             self._run_simulation(root, simulation + 1)
+
+            print("[DEBUG] root: ", str(root))
             
-            if self.enable_detailed_logging and (simulation + 1) % 10 == 0:
-                self._log_tree_stats(root, simulation + 1)
+            self._log_tree_stats(root, simulation + 1)
         
         # Return average reward
         final_score = root.get_average_reward()
         
-        if self.enable_detailed_logging:
-            self._log_final_tree_analysis(root)
-        
+        self._log_final_tree_analysis(root)
+
         return final_score
     
     def _run_simulation(self, root: MCTSNode, simulation_num: int = 0) -> float:
@@ -170,21 +148,19 @@ class ConversationPlanner:
         path = []
         current = self._select(root, path)
         
-        if self.enable_detailed_logging:
-            self._log_selection_path(path)
+        self._log_selection_path(path)
         
         # Expansion phase: add new child if not terminal
         expanded_node = current
         if not current.is_terminal(self.max_depth) and not current.is_leaf():
             expanded_node = self._expand(current)
-            if self.enable_detailed_logging and expanded_node != current:
-                self._log_expansion(expanded_node)
+        
+            self._log_expansion(expanded_node)
         
         # Simulation phase: random rollout to terminal state
         reward, simulation_path = self._simulate(expanded_node)
         
-        if self.enable_detailed_logging:
-            self._log_simulation_result(simulation_path, reward)
+        self._log_simulation_result(simulation_path, reward)
         
         # Backpropagation phase: update node values
         expanded_node.backpropagate(reward)
@@ -200,6 +176,7 @@ class ConversationPlanner:
             node = node.select_best_child(self.exploration_constant)
             if path is not None:
                 path.append(node)
+
         return node
     
     def _expand(self, node: MCTSNode) -> MCTSNode:
@@ -326,49 +303,37 @@ class ConversationPlanner:
     # Logging helper methods
     def _log_header(self, title: str):
         """Log a formatted header."""
-        if not self.enable_detailed_logging:
-            return
         self.logger.info("\n" + "=" * 80)
         self.logger.info(f"{title:^80}")
         self.logger.info("=" * 80)
     
     def _log_separator(self):
         """Log a separator line."""
-        if not self.enable_detailed_logging:
-            return
         self.logger.info("-" * 80)
     
-    def _log_info(self, message: str):
+    def _log(self, message: str):
         """Log an info message."""
-        if not self.enable_detailed_logging:
-            return
         self.logger.info(message)
     
     def _log_candidate_header(self, candidate_num: int, total_candidates: int, candidate: str):
         """Log candidate evaluation header."""
-        if not self.enable_detailed_logging:
-            return
         self.logger.info(f"\n{'='*20} CANDIDATE {candidate_num}/{total_candidates} {'='*20}")
         self.logger.info(f"Candidate Response: \"{candidate[:100]}{'...' if len(candidate) > 100 else ''}\"")
         self.logger.info("-" * 60)
     
     def _log_candidate_result(self, candidate_num: int, candidate: str, score: float):
         """Log candidate evaluation result."""
-        if not self.enable_detailed_logging:
-            return
         self.logger.info(f"\nCandidate {candidate_num} Final Score: {score:.6f}")
         self.logger.info("=" * 60)
     
     def _log_simulation_header(self, simulation_num: int):
         """Log simulation header."""
-        if not self.enable_detailed_logging:
-            return
         if simulation_num <= 5 or simulation_num % 10 == 0:  # Log first 5 and every 10th
             self.logger.info(f"\n  --- Simulation {simulation_num} ---")
     
     def _log_selection_path(self, path: List[MCTSNode]):
         """Log the selection path through the tree."""
-        if not self.enable_detailed_logging or len(path) <= 1:
+        if len(path) <= 1:
             return
         
         # Only log detailed path for first few simulations
@@ -388,9 +353,6 @@ class ConversationPlanner:
     
     def _log_expansion(self, expanded_node: MCTSNode):
         """Log node expansion."""
-        if not self.enable_detailed_logging:
-            return
-        
         # Only log expansions for first few simulations
         if self.total_simulations_run < 5:
             action_preview = expanded_node.action[:50] + "..." if expanded_node.action and len(expanded_node.action) > 50 else expanded_node.action
@@ -398,9 +360,6 @@ class ConversationPlanner:
     
     def _log_simulation_result(self, simulation_path: List[str], reward: float):
         """Log simulation rollout and result."""
-        if not self.enable_detailed_logging:
-            return
-        
         # Only log detailed simulations for first few
         if self.total_simulations_run < 5:
             if simulation_path:
@@ -414,17 +373,13 @@ class ConversationPlanner:
     
     def _log_tree_stats(self, root: MCTSNode, simulation_num: int):
         """Log tree statistics."""
-        if not self.enable_detailed_logging:
-            return
-        
+
         total_nodes = self._count_nodes(root)
         self.logger.info(f"  After {simulation_num} simulations: {total_nodes} nodes, avg_reward={root.get_average_reward():.6f}")
     
     def _log_final_tree_analysis(self, root: MCTSNode):
         """Log final tree analysis."""
-        if not self.enable_detailed_logging:
-            return
-        
+
         self.logger.info(f"\nFinal Tree Analysis:")
         self.logger.info(f"  Root visits: {root.visits}")
         self.logger.info(f"  Root average reward: {root.get_average_reward():.6f}")

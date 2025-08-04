@@ -33,9 +33,7 @@ def main():
                        help="Maximum conversation depth")
     parser.add_argument("--reward", choices=["words"],
                        default="words", help="Reward function to use")
-    parser.add_argument("--log-mcts", action="store_true",
-                       help="Enable detailed MCTS search logging")
-    
+
     args = parser.parse_args()
     
     print("=" * 60)
@@ -84,7 +82,6 @@ def main():
         num_simulations=args.simulations,
         exploration_constant=1.414,  # sqrt(2)
         temperature=0.7,
-        enable_detailed_logging=args.log_mcts
     )
     
     print(f"\nConfiguration:")
@@ -99,24 +96,13 @@ def main():
     try:
         results = planner.plan_conversation(args.prompt, args.candidates)
         
-        if not results:
-            print("No results generated. Check your LLM provider configuration.")
-            return
-        
         print(f"\nResults (ranked by score):")
-        print("\n[DEBUG] Candidate responses generated:")
-        for idx, cand in enumerate(results):
-            print(f"  Candidate {idx+1}: {cand[0]!r}")
-        print()
         results.sort(key=lambda x: x[1], reverse=True)
         
         for i, (candidate, score) in enumerate(results, 1):
             print(f"\nRank {i} (Score: {score:.4f})")
             print("-" * 40)
-            print(f"Response: {candidate}")
-            
-            if i < len(results):
-                print()
+            print(f"Response: {candidate}\n")
         
         print("\n" + "=" * 60)
         print(f"Best candidate (Score: {results[0][1]:.4f}):")
@@ -132,7 +118,6 @@ def main():
         print(f"Error during planning: {e}")
         import traceback
         traceback.print_exc()
-
 
 if __name__ == "__main__":
     main()
