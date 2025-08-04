@@ -9,7 +9,7 @@ import logging
 from typing import List, Tuple, Optional
 from llm_providers import LLMProvider
 from mcts_node import MCTSNode, ConversationState
-from reward_functions import RewardFunction, DEFAULT_REWARD_FUNCTION
+from reward_functions import RewardFunction
 
 
 class ConversationPlanner:
@@ -21,14 +21,15 @@ class ConversationPlanner:
     """
     
     def __init__(self, 
-                 agent1_provider: LLMProvider,
-                 agent2_provider: LLMProvider,
-                 reward_function: RewardFunction = None,
-                 max_depth: int = 3,
-                 num_simulations: int = 100,
-                 exploration_constant: float = math.sqrt(2),
-                 temperature: float = 0.7,
-                 enable_detailed_logging: bool = False):
+            agent1_provider: LLMProvider,
+            agent2_provider: LLMProvider,
+            reward_function: RewardFunction = None,
+            max_depth: int = 3,
+            num_simulations: int = 100,
+            exploration_constant: float = math.sqrt(2),
+            temperature: float = 0.7,
+            enable_detailed_logging: bool = False
+        ):
         """
         Initialize conversation planner.
         
@@ -44,7 +45,7 @@ class ConversationPlanner:
         """
         self.agent1_provider = agent1_provider
         self.agent2_provider = agent2_provider
-        self.reward_function = reward_function or DEFAULT_REWARD_FUNCTION
+        self.reward_function = reward_function
         self.max_depth = max_depth
         self.num_simulations = num_simulations
         self.exploration_constant = exploration_constant
@@ -65,8 +66,9 @@ class ConversationPlanner:
         self.total_nodes_created = 0
     
     def plan_conversation(self, 
-                         initial_prompt: str, 
-                         num_candidates: int = 5) -> List[Tuple[str, float]]:
+            initial_prompt: str, 
+            num_candidates: int = 5
+        ) -> List[Tuple[str, float]]:
         """
         Plan conversation by evaluating multiple Agent 2 candidate responses.
         

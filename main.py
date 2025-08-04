@@ -7,8 +7,10 @@ import os
 import argparse
 from conversation_planner import ConversationPlanner
 from llm_providers import OpenAIProvider, OllamaProvider, MockProvider
-from reward_functions import Agent1LengthReward, Agent1WordCountReward, CompositeReward
+from reward_functions import WordCountReward
 
+DEFAULT_PROMPT = "What are your thoughts on artificial intelligence?"
+DEFAULT_OLLAMA_HOST = "http://ollama-brewster:80"
 
 def main():
     """Main function to run conversation planning."""
@@ -19,18 +21,18 @@ def main():
                        help="Model for Agent 1")
     parser.add_argument("--agent2-model", default="llama3.3:latest", 
                        help="Model for Agent 2")
-    parser.add_argument("--ollama-host", default="http://ollama-brewster:80",
+    parser.add_argument("--ollama-host", default=DEFAULT_OLLAMA_HOST,
                        help="Ollama server host")
-    parser.add_argument("--prompt", default="What are your thoughts on artificial intelligence?",
+    parser.add_argument("--prompt", default=DEFAULT_PROMPT,
                        help="Initial prompt from Agent 1")
     parser.add_argument("--candidates", type=int, default=3,
                        help="Number of candidate responses to evaluate")
-    parser.add_argument("--simulations", type=int, default=50,
+    parser.add_argument("--simulations", type=int, default=10,
                        help="Number of MCTS simulations per candidate")
     parser.add_argument("--depth", type=int, default=3,
                        help="Maximum conversation depth")
-    parser.add_argument("--reward", choices=["length", "words", "composite"],
-                       default="length", help="Reward function to use")
+    parser.add_argument("--reward", choices=["words"],
+                       default="words", help="Reward function to use")
     parser.add_argument("--log-mcts", action="store_true",
                        help="Enable detailed MCTS search logging")
     
@@ -41,55 +43,36 @@ def main():
     print("=" * 60)
     
     # Initialize LLM providers
-    if args.provider == "openai":
-        if not os.getenv("OPENAI_API_KEY"):
-            print("Warning: OPENAI_API_KEY environment variable not set")
-            print("Using mock provider instead")
-            agent1_provider = MockProvider()
-            agent2_provider = MockProvider()
-        else:
+    try:
+        if args.provider == "openai":
             agent1_provider = OpenAIProvider(args.agent1_model)
             agent2_provider = OpenAIProvider(args.agent2_model)
-            print(f"Using OpenAI models: {args.agent1_model} (Agent1), {args.agent2_model} (Agent2)")
+            print(
+                f"Using OpenAI models: {args.agent1_model} (Agent1), "
+                f"{args.agent2_model} (Agent2)")
     
-    elif args.provider == "ollama":
-        try:
+        elif args.provider == "ollama":
             agent1_provider = OllamaProvider(args.agent1_model, args.ollama_host)
             agent2_provider = OllamaProvider(args.agent2_model, args.ollama_host)
-            print(f"Using Ollama models: {args.agent1_model} (Agent1), {args.agent2_model} (Agent2)")
+            print(
+                f"Using Ollama models: {args.agent1_model} (Agent1), "
+                f"{args.agent2_model} (Agent2)")
             print(f"Ollama host: {args.ollama_host}")
-        except Exception as e:
-            print(f"Error connecting to Ollama: {e}")
-            print("Using mock provider instead")
+
+        else:
             agent1_provider = MockProvider()
             agent2_provider = MockProvider()
-    
-    else:  # mock
-        agent1_provider = MockProvider([
-            "That's a fascinating question! I think AI has tremendous potential.",
-            "I'm quite optimistic about AI's future applications.",
-            "There are both exciting opportunities and important challenges to consider."
-        ])
-        agent2_provider = MockProvider([
-            "I agree, AI is revolutionizing many fields.",
-            "What specific aspects interest you most?",
-            "The ethical implications are particularly important.",
-            "I'd love to hear more about your perspective.",
-            "How do you think we should approach AI development?"
-        ])
-        print("Using mock providers for demonstration")
-    
+            print("Using mock providers for demonstration.")
+
+    except Exception as e:
+        print(f"Error connecting to {args.provider}: {e}")
+        print("Using mock provider instead.")
+        agent1_provider = MockProvider()
+        agent2_provider = MockProvider()
+
     # Initialize reward function
-    if args.reward == "length":
-        reward_function = Agent1LengthReward(normalize=True, max_length=1000)
-    elif args.reward == "words":
-        reward_function = Agent1WordCountReward(normalize=True, max_words=200)
-    else:  # composite
-        reward_function = CompositeReward([
-            (Agent1LengthReward(normalize=True), 0.7),
-            (Agent1WordCountReward(normalize=True), 0.3)
-        ])
-    
+    if args.reward == "words":
+        reward_function = WordCountReward(agent=1)
     print(f"Reward function: {type(reward_function).__name__}")
     
     # Initialize conversation planner

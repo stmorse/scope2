@@ -6,16 +6,8 @@ Supports OpenAI and Ollama models with plug-and-play architecture.
 from abc import ABC, abstractmethod
 from typing import List, Optional
 
-# Optional imports for different LLM providers
-try:
-    import openai
-except ImportError:
-    openai = None
-    
-try:
-    import ollama
-except ImportError:
-    ollama = None
+import openai
+import ollama
 
 
 class LLMProvider(ABC):

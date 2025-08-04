@@ -18,6 +18,11 @@ class ConversationState:
     def get_last_message(self) -> str:
         """Get the last message in the conversation."""
         return self.messages[-1] if self.messages else ""
+
+    def get_all_agent_messages(self, agent) -> List[str]:
+        """Returns all messages from `agent` (Agent 1 / Agent 2)"""
+        msgs = [self.messages[i] for i in range(agent-1, len(self.messages), 2)]
+        return msgs
     
     def get_conversation_history(self) -> str:
         """Get formatted conversation history."""
