@@ -7,7 +7,8 @@ import random
 import math
 import logging
 from typing import List, Tuple, Optional
-from llm_providers import LLMProvider
+from agent.agent import Agent
+# from llm_providers import LLMProvider
 from mcts_node import MCTSNode, ConversationState
 from reward_functions import RewardFunction
 
@@ -21,7 +22,7 @@ class ConversationPlanner:
     """
     
     def __init__(self, 
-            client: LLMProvider,
+            agents: List[Agent],
             reward_function: RewardFunction = None,
             max_depth: int = 3,
             branching_factor: int = 3,
@@ -34,16 +35,16 @@ class ConversationPlanner:
         Initialize conversation planner.
         
         Args:
-            client: client for both agents
+            agents: list of Agents
             reward_function: Function to calculate conversation rewards
             max_depth: Maximum depth of search tree
             branching_factor: Max branching at each child
-            rollout_depth: 
+            rollout_depth: max number of turns post-expansion
             num_simulations: Number of MCTS simulations to run
             exploration_constant: UCT exploration parameter
             temperature: Temperature for LLM generation
         """
-        self.client = client
+        self.agents = agents
         self.reward_function = reward_function
         self.max_depth = max_depth
         self.branching_factor = branching_factor
@@ -64,20 +65,6 @@ class ConversationPlanner:
         # Statistics tracking
         self.total_simulations_run = 0
         self.total_nodes_created = 0
-
-    def get_statistics(self) -> dict:
-        """Get planner statistics and configuration."""
-        return {
-            "max_depth": self.max_depth,
-            "branching_factor": self.branching_factor,
-            "rollout_depth": self.rollout_depth,
-            "num_simulations": self.num_simulations,
-            "exploration_constant": self.exploration_constant,
-            "temperature": self.temperature,
-            "reward_function": type(self.reward_function).__name__,
-            "total_simulations_run": self.total_simulations_run,
-            "total_nodes_created": self.total_nodes_created
-        }
     
     def plan_conversation(self, 
             initial_prompt: str, 
@@ -96,9 +83,9 @@ class ConversationPlanner:
         
         # Generate candidate responses from Agent 2
         print(f"Generating {num_candidates} candidate responses...")
-        candidates = self.client.generate_multiple_responses(
-            initial_prompt, num_candidates, self.temperature
-        )
+        candidates = [
+            self.agents[1].get_response(prompt) for _ in range(num_candidates)
+        ]
         
         print(f"Evaluating {len(candidates)} candidates with MCTS...")
         
@@ -215,8 +202,8 @@ class ConversationPlanner:
         agent = next_turn + 1
 
         # get agent's message
-        prompt = self._build_prompt(current_state, agent=agent)
-        next_message = self._get_agent_response(prompt)
+        # prompt = self._build_prompt(current_state, agent=agent)
+        next_message = self._get_agent_response(current_state, agent=agent)
         
         # create new state
         new_messages = current_state.messages + [next_message]
@@ -255,8 +242,8 @@ class ConversationPlanner:
             agent = simulation_turn + 1
 
             # get response
-            prompt = self._build_prompt(current_state, agent=agent)
-            next_message = self._get_agent_response(prompt)
+            # prompt = self._build_prompt(current_state, agent=agent)
+            next_message = self._get_agent_response(current_state, agent=agent)
             
             simulation_messages.append(next_message)
             simulation_depth += 1
@@ -271,8 +258,8 @@ class ConversationPlanner:
         reward = self.reward_function.calculate_reward(final_state)
         return reward, final_state.get_conversation_history()
     
-    def _build_prompt(self, state: ConversationState, agent: int) -> str:
-        """Build prompt for Agent `agent` based on conversation history."""
+    def _get_agent_response(self, state: ConversationState, agent: int) -> str:
+        """Get response for Agent `agent` based on conversation history."""
         
         template = (
             "You are having a conversation with another agent. "
@@ -288,11 +275,10 @@ class ConversationPlanner:
             agent=agent
         )
 
-        return prompt
+        response = self.agents[agent - 1].get_response(prompt)
 
-    def _get_agent_response(self, prompt: str) -> str:
-        return self.client.generate_response(prompt, self.temperature)
-        
+        return response
+
     # ----------------------
     # Logging helper methods
     # ----------------------

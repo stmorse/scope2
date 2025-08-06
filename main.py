@@ -5,11 +5,13 @@ Entrypoint for running MCTS
 import argparse
 import os
 
+from agent.agent import Agent
 from conversation_planner import ConversationPlanner
-from llm_providers import OpenAIProvider, OllamaProvider, MockProvider
+# from llm_providers import OpenAIProvider, OllamaProvider, MockProvider
 from reward_functions import WordCountReward
 
 DEFAULT_PROMPT = "What are your thoughts on artificial intelligence?"
+DEFAULT_API_KEY = "asdf"
 DEFAULT_OLLAMA_HOST = "http://ollama-brewster:80"
 PROVIDERS = ["openai", "ollama", "mock"]
 DEFAULT_PROVIDER = "mock"
@@ -30,24 +32,30 @@ def main():
     
     print(f"{'=' * 60}\nMCTS Conversation Planning System\n{'=' * 60}")
     
-    # Initialize LLM providers
-    try:
-        if args.provider == "openai":
-            client = OpenAIProvider(args.model)
-            print(f"Using OpenAI model: {args.model}")
+    # initialize agents
+    config = {"OLLAMA_HOST": args.ollama_host}
+    agents = [
+        Agent(provider=args.provider, model=args.model, config=config) 
+        for _ in range(2)
+    ]
     
-        elif args.provider == "ollama":
-            client = OllamaProvider(args.model, args.ollama_host)
-            print(f"Using Ollama model: {args.model} (host: {args.ollama_host})")
+    # try:
+    #     if args.provider == "openai":
+    #         client = OpenAIProvider(args.model)
+    #         print(f"Using OpenAI model: {args.model}")
+    
+    #     elif args.provider == "ollama":
+    #         client = OllamaProvider(args.model, args.ollama_host)
+    #         print(f"Using Ollama model: {args.model} (host: {args.ollama_host})")
 
-        else:
-            client = MockProvider()
-            print("Using mock provider for demonstration.")
+    #     else:
+    #         client = MockProvider()
+    #         print("Using mock provider for demonstration.")
 
-    except Exception as e:
-        print(f"Error connecting to {args.provider}: {e}")
-        print("Using mock provider instead.")
-        client = MockProvider()
+    # except Exception as e:
+    #     print(f"Error connecting to {args.provider}: {e}")
+    #     print("Using mock provider instead.")
+    #     client = MockProvider()
 
     # Initialize reward function
     if args.reward == "words":
@@ -56,7 +64,7 @@ def main():
     
     # Initialize conversation planner
     planner = ConversationPlanner(
-        client=client,
+        agents=agents,
         reward_function=reward_function,
         max_depth=args.depth,
         num_simulations=args.simulations,
@@ -86,13 +94,7 @@ def main():
         
         print("\n" + "=" * 60)
         print(f"Best candidate (Score: {results[0][1]:.4f}):")
-        print(f"\"{results[0][0]}\"")
-        
-        # Show statistics
-        stats = planner.get_statistics()
-        print(f"\nPlanner Statistics:")
-        for key, value in stats.items():
-            print(f"  {key}: {value}")
+        print(f"\"{results[0][0]}\"\n\n")
     
     except Exception as e:
         print(f"Error during planning: {e}")
