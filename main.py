@@ -1,72 +1,53 @@
 """
-Main script demonstrating conversation planning with MCTS.
-Shows how to use the system with different LLM providers.
+Entrypoint for running MCTS
 """
 
-import os
 import argparse
+import os
+
 from conversation_planner import ConversationPlanner
 from llm_providers import OpenAIProvider, OllamaProvider, MockProvider
 from reward_functions import WordCountReward
 
 DEFAULT_PROMPT = "What are your thoughts on artificial intelligence?"
 DEFAULT_OLLAMA_HOST = "http://ollama-brewster:80"
+PROVIDERS = ["openai", "ollama", "mock"]
+DEFAULT_PROVIDER = "mock"
+DEFAULT_MODEL = "llama3.3:latest"
 
 def main():
     """Main function to run conversation planning."""
-    parser = argparse.ArgumentParser(description="MCTS Conversation Planning")
-    parser.add_argument("--provider", choices=["openai", "ollama", "mock"], 
-                       default="mock", help="LLM provider to use")
-    parser.add_argument("--agent1-model", default="llama3.3:latest", 
-                       help="Model for Agent 1")
-    parser.add_argument("--agent2-model", default="llama3.3:latest", 
-                       help="Model for Agent 2")
-    parser.add_argument("--ollama-host", default=DEFAULT_OLLAMA_HOST,
-                       help="Ollama server host")
-    parser.add_argument("--prompt", default=DEFAULT_PROMPT,
-                       help="Initial prompt from Agent 1")
-    parser.add_argument("--candidates", type=int, default=3,
-                       help="Number of candidate responses to evaluate")
-    parser.add_argument("--simulations", type=int, default=10,
-                       help="Number of MCTS simulations per candidate")
-    parser.add_argument("--depth", type=int, default=3,
-                       help="Maximum conversation depth")
-    parser.add_argument("--reward", choices=["words"],
-                       default="words", help="Reward function to use")
-
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--provider", choices=PROVIDERS, default=DEFAULT_PROVIDER)
+    parser.add_argument("--model", default=DEFAULT_MODEL)
+    parser.add_argument("--ollama-host", default=DEFAULT_OLLAMA_HOST)
+    parser.add_argument("--prompt", default=DEFAULT_PROMPT)
+    parser.add_argument("--candidates", type=int, default=3)
+    parser.add_argument("--simulations", type=int, default=10)
+    parser.add_argument("--depth", type=int, default=3)  # max tree depth
+    parser.add_argument("--reward", choices=["words"], default="words")
     args = parser.parse_args()
     
-    print("=" * 60)
-    print("MCTS Conversation Planning System")
-    print("=" * 60)
+    print(f"{'=' * 60}\nMCTS Conversation Planning System\n{'=' * 60}")
     
     # Initialize LLM providers
     try:
         if args.provider == "openai":
-            agent1_provider = OpenAIProvider(args.agent1_model)
-            agent2_provider = OpenAIProvider(args.agent2_model)
-            print(
-                f"Using OpenAI models: {args.agent1_model} (Agent1), "
-                f"{args.agent2_model} (Agent2)")
+            client = OpenAIProvider(args.model)
+            print(f"Using OpenAI model: {args.model}")
     
         elif args.provider == "ollama":
-            agent1_provider = OllamaProvider(args.agent1_model, args.ollama_host)
-            agent2_provider = OllamaProvider(args.agent2_model, args.ollama_host)
-            print(
-                f"Using Ollama models: {args.agent1_model} (Agent1), "
-                f"{args.agent2_model} (Agent2)")
-            print(f"Ollama host: {args.ollama_host}")
+            client = OllamaProvider(args.model, args.ollama_host)
+            print(f"Using Ollama model: {args.model} (host: {args.ollama_host})")
 
         else:
-            agent1_provider = MockProvider()
-            agent2_provider = MockProvider()
-            print("Using mock providers for demonstration.")
+            client = MockProvider()
+            print("Using mock provider for demonstration.")
 
     except Exception as e:
         print(f"Error connecting to {args.provider}: {e}")
         print("Using mock provider instead.")
-        agent1_provider = MockProvider()
-        agent2_provider = MockProvider()
+        client = MockProvider()
 
     # Initialize reward function
     if args.reward == "words":
@@ -75,8 +56,7 @@ def main():
     
     # Initialize conversation planner
     planner = ConversationPlanner(
-        agent1_provider=agent1_provider,
-        agent2_provider=agent2_provider,
+        client=client,
         reward_function=reward_function,
         max_depth=args.depth,
         num_simulations=args.simulations,

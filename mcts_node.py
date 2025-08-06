@@ -30,14 +30,18 @@ class ConversationState:
         for i, message in enumerate(self.messages):
             agent = "Agent1" if i % 2 == 0 else "Agent2"
             history.append(f"{agent}: {message}")
-        return "\n".join(history)
+        # return "\n".join(history)
+        return history
 
 
 class MCTSNode:
     """Node in the MCTS tree for conversation planning."""
     
-    def __init__(self, state: ConversationState, parent: Optional['MCTSNode'] = None, 
-                 action: Optional[str] = None):
+    def __init__(self, 
+            state: ConversationState, 
+            parent: Optional['MCTSNode'] = None, 
+            action: Optional[str] = None,
+        ):
         """
         Initialize MCTS node.
         
@@ -52,12 +56,10 @@ class MCTSNode:
         self.children: List['MCTSNode'] = []
         self.visits = 0
         self.total_reward = 0.0
-        self.is_fully_expanded = False
-        self.untried_actions: List[str] = []
     
-    def is_leaf(self) -> bool:
-        """Check if this is a leaf node (no children)."""
-        return len(self.children) == 0
+    def is_leaf(self, branching_factor: int) -> bool:
+        """Check if this is a leaf node (i.e. not fully expanded)."""
+        return len(self.children) < branching_factor
     
     def is_terminal(self, max_depth: int) -> bool:
         """Check if this is a terminal node (reached max depth)."""
@@ -97,7 +99,11 @@ class MCTSNode:
         if not self.children:
             raise ValueError("Cannot select child from node with no children")
         
-        return max(self.children, key=lambda child: child.uct_value(exploration_constant))
+        val = max(
+            self.children, 
+            key=lambda child: child.uct_value(exploration_constant)
+        )
+        return val
     
     def add_child(self, action: str, state: ConversationState) -> 'MCTSNode':
         """Add a child node with the given action and state."""
