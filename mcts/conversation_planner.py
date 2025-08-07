@@ -9,9 +9,17 @@ import logging
 from typing import List, Tuple, Optional
 
 from agent.agent import Agent
-from mcts.mcts_node import MCTSNode, ConversationState
-from mcts.reward_functions import RewardFunction
+from .mcts_node import MCTSNode, ConversationState
+from .reward_functions import RewardFunction
 
+BASE_PROMPT = (
+    "You are having a conversation with another agent. "
+    "You are roleplaying as Agent {agent}. "
+    "Here is the dialogue so far: "
+    "{history}\n\n"
+    "What is your response? "
+    "Keep your response SHORT, limited to 2-3 sentences."
+)
 
 class ConversationPlanner:
     """
@@ -238,16 +246,13 @@ class ConversationPlanner:
                 depth=simulation_depth
             )
 
-            # get next turn and agent
-            simulation_turn = (simulation_turn + 1) % 2
-            agent = simulation_turn + 1
-
             # get response
-            # prompt = self._build_prompt(current_state, agent=agent)
+            agent = simulation_turn + 1
             next_message = self._get_agent_response(current_state, agent=agent)
             
             simulation_messages.append(next_message)
             simulation_depth += 1
+            simulation_turn = (simulation_turn + 1) % 2
         
         # Calculate final reward
         final_state = ConversationState(
@@ -257,24 +262,18 @@ class ConversationPlanner:
         )
         
         reward = self.reward_function.calculate_reward(final_state)
-        return reward, final_state.get_conversation_history()
+        return reward, final_state.get_annotated_messages()
     
     def _get_agent_response(self, state: ConversationState, agent: int) -> str:
         """Get response for Agent `agent` based on conversation history."""
         
-        template = (
-            "You are having a conversation with another agent. "
-            "Here is the dialogue so far: "
-            "{history}\n\n"
-            "Continue this conversation as Agent {agent}. "
-            "Keep your response limited to 2-3 sentences."
-        )
-
         # Simple prompt: just the conversation history
-        prompt = template.format(
-            history=state.get_conversation_history(),
+        prompt = BASE_PROMPT.format(
+            history=state.get_annotated_messages(),
             agent=agent
         )
+
+        print(f"\n\n[DEBUG] Prompt:\n{prompt}\n")
 
         response = self.agents[agent - 1].get_response(prompt)
 

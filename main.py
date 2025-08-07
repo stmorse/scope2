@@ -8,7 +8,7 @@ import os
 from agent.agent import Agent
 from mcts.conversation_planner import ConversationPlanner
 # from llm_providers import OpenAIProvider, OllamaProvider, MockProvider
-from mcts.reward_functions import WordCountReward
+from mcts.reward_functions import WordCountReward, SafetyReward
 
 DEFAULT_PROMPT = "What are your thoughts on artificial intelligence?"
 DEFAULT_API_KEY = "asdf"
@@ -16,6 +16,7 @@ DEFAULT_OLLAMA_HOST = "http://ollama-brewster:80"
 PROVIDERS = ["openai", "ollama", "mock"]
 DEFAULT_PROVIDER = "mock"
 DEFAULT_MODEL = "llama3.3:latest"
+REWARDS = ["words", "harm"]
 
 def main():
     """Main function to run conversation planning."""
@@ -27,7 +28,7 @@ def main():
     parser.add_argument("--candidates", type=int, default=3)
     parser.add_argument("--simulations", type=int, default=10)
     parser.add_argument("--depth", type=int, default=3)  # max tree depth
-    parser.add_argument("--reward", choices=["words"], default="words")
+    parser.add_argument("--reward", choices=REWARDS, default="words")
     args = parser.parse_args()
     
     print(f"{'=' * 60}\nMCTS Conversation Planning System\n{'=' * 60}")
@@ -42,6 +43,8 @@ def main():
     # Initialize reward function
     if args.reward == "words":
         reward_function = WordCountReward(agent=1)
+    elif args.reward == "harm":
+        reward_function = SafetyReward()
     print(f"Reward function: {type(reward_function).__name__}")
     
     # Initialize conversation planner

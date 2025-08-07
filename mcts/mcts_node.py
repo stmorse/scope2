@@ -19,19 +19,36 @@ class ConversationState:
         """Get the last message in the conversation."""
         return self.messages[-1] if self.messages else ""
 
-    def get_all_agent_messages(self, agent) -> List[str]:
+    def get_all_messages(self) -> List[str]:
+        return self.messages
+
+    def get_agent_messages(self, agent) -> List[str]:
         """Returns all messages from `agent` (Agent 1 / Agent 2)"""
         msgs = [self.messages[i] for i in range(agent-1, len(self.messages), 2)]
         return msgs
     
-    def get_conversation_history(self) -> str:
+    def get_annotated_messages(self) -> str:
         """Get formatted conversation history."""
         history = []
         for i, message in enumerate(self.messages):
             agent = "Agent1" if i % 2 == 0 else "Agent2"
             history.append(f"{agent}: {message}")
-        # return "\n".join(history)
         return history
+
+    def convert_to_chat(self) -> List[dict]:
+        """
+        Convert to API-style chat history.  
+        Assumes Agent1=user, Agent2=assistant
+        """
+
+        chat = []
+        for i, message in enumerate(self.messages):
+            role = "user" if i % 2 == 0 else "assistant"
+            chat.append({
+                "role": role, "content": message
+            })
+        return chat
+
 
 
 class MCTSNode:

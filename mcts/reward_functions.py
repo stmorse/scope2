@@ -5,45 +5,14 @@ Reward functions for evaluating conversation outcomes in MCTS.
 from abc import ABC, abstractmethod
 from typing import List
 
-from mcts.mcts_node import ConversationState
+from .mcts_node import ConversationState
 
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForCausalLM
 import torch
+import torch.nn.functional as F
 
-
-class SafetyReward(RewardFunction):
-    """Reward function that uses Llama Guard to score conversation harmfulness (higher = more harmful)."""
-    def __init__(self, model_name="meta-llama/LlamaGuard-7b"):  # Default model name; can be changed
-        self.model_name = model_name
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.model = AutoModelForSequenceClassification.from_pretrained(self.model_name)
-        self.model.eval()
-
-    def calculate_reward(self, state: ConversationState) -> float:
-        """Return harmfulness score for the conversation (higher = more harmful)."""
-        # Join all messages as a single string for scoring
-        if hasattr(state, 'get_conversation_history'):
-            # get_conversation_history returns a list of 'AgentX: message' strings
-            history = state.get_conversation_history()
-            if isinstance(history, list):
-                text = "\n".join(history)
-            else:
-                text = str(history)
-        else:
-            # fallback: join raw messages
-            text = "\n".join(state.messages)
-
-        inputs = self.tokenizer(text, return_tensors="pt", truncation=True, max_length=1024)
-        with torch.no_grad():
-            outputs = self.model(**inputs)
-            # Llama Guard outputs logits for [safe, unsafe] (or similar)
-            logits = outputs.logits
-            # Harmfulness = probability of "unsafe" class
-            probs = torch.softmax(logits, dim=1)
-            # Assume unsafe class is index 1
-            harmfulness = probs[0, 1].item()
-        return harmfulness
-
+DEFAULT_SAFETY_MODEL = "meta-llama/LlamaGuard-7b"
+# DEFAULT_SAFETY_MODEL = "meta-llama/Meta-Llama-Guard-2-8B"
 
 class RewardFunction(ABC):
     """Abstract base class for reward functions."""
@@ -52,6 +21,72 @@ class RewardFunction(ABC):
     def calculate_reward(self, state: ConversationState) -> float:
         """Calculate reward for a given conversation state."""
         pass
+
+
+class SafetyReward(RewardFunction):
+    """
+    Reward function that uses Llama Guard to score conversation 
+    harmfulness (higher = more harmful).
+    """
+    
+    def __init__(self, model_name=DEFAULT_SAFETY_MODEL):
+        self.model_name = model_name
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(
+            self.model_name, torch_dtype=torch.bfloat16, device_map="cuda")
+        self.model.eval()
+
+    def calculate_reward(self, state: ConversationState) -> float:
+        """Return harmfulness score for the conversation (higher = more harmful)."""
+        
+        # convert ConversationState to chat format
+        chat = state.convert_to_chat()
+
+        print(chat)
+
+        # get safe/unsafe probs
+        safe = self.get_safe_prob(chat)
+        return (1 - safe)
+
+    def moderate_with_template(self, chat):
+        input_ids = self.tokenizer.apply_chat_template(
+            chat, return_tensors="pt").to("cuda")
+        output = self.model.generate(
+            input_ids=input_ids, max_new_tokens=100, pad_token_id=0)
+        prompt_len = input_ids.shape[-1]
+        
+        return self.tokenizer.decode(
+            output[0][prompt_len:], skip_special_tokens=True)
+
+    def _first_token_probs(self, chat):
+        input_ids = self.tokenizer.apply_chat_template(
+            chat, return_tensors="pt").to(self.model.device)
+    
+        with torch.no_grad():
+            logits = self.model(input_ids).logits     # [B, T, |V|]
+        
+        # token after the prompt
+        first_logits = logits[0, -1]                  
+        
+        # probabilities over vocab
+        return F.softmax(first_logits, dim=-1)
+
+    def get_safe_prob(self, chat):
+        """
+        Extract probability of 'safe' classification.
+        Note: p(safe) = 1 - p(unsafe)
+        """
+        # get softmax probs of first token after the prompt 
+        # (the safe/unsafe token)
+        probs = self._first_token_probs(chat)
+
+        # get the id of the "safe" token
+        safe = self.tokenizer.encode("safe", add_special_tokens=False)
+        
+        # extract this prob from the full softmax list
+        p_safe = probs[safe[0]].item()
+        return p_safe
+
 
 class WordCountReward(RewardFunction):
     """Reward function based on word count of Agent 0 / 1 responses."""

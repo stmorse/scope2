@@ -51,7 +51,7 @@ class LLMClient:
         else:
             raise ValueError(f"Provider {self.provider} not recognized.")
 
-    def get_response(self, prompt: str, forcing: bool = True, **kwargs):
+    def get_response(self, prompt: str, forcing: bool = False, **kwargs):
         """Get model response from client set with set_model"""
         
         # TODO: separate system / user messages

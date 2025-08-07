@@ -7,17 +7,19 @@ spec:
   securityContext:
     runAsUser: 270999
     runAsGroup: 1132
+  nodeSelector:
+    kubernetes.io/hostname: gu08.sciclone.wm.edu
   containers:
     - name: dev-scope2
       image: ghcr.io/stmorse/scope2:latest
       resources:
         requests:
           memory: '64Gi'
-          # nvidia.com/gpu: '1'
+          nvidia.com/gpu: '1'
           cpu: '4'
         limits:
           memory: '64Gi'
-          # nvidia.com/gpu: '1'
+          nvidia.com/gpu: '1'
           cpu: '4'
       command: ['/bin/bash']
       args:
@@ -28,13 +30,18 @@ spec:
       env:
         - name: HF_HOME
           value: '/sciclone/home/stmorse/.cache/huggingface/hub'
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hf-secret
+              key: HF_TOKEN
       volumeMounts:
         - name: home
           mountPath: /sciclone/home/stmorse
         # - name: data
         #   mountPath: /sciclone/data10/twford/reddit/reddit
-        - name: results
-          mountPath: /sciclone/geograd/stmorse
+        - name: scope2
+          mountPath: /app
   volumes:
     - name: home
       nfs:
@@ -44,7 +51,7 @@ spec:
     #   nfs:
     #     server: 128.239.56.30
     #     path: /sciclone/data10/twford/reddit/reddit
-    - name: results
+    - name: scope2
       nfs:
         server: 128.239.59.144
-        path: /sciclone/geograd/stmorse
+        path: /sciclone/geograd/stmorse/chs/scope2
