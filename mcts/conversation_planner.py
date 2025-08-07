@@ -3,10 +3,9 @@ Main MCTS Conversation Planner implementation.
 Uses Monte Carlo Tree Search with UCT policy to select optimal LLM responses.
 """
 
-import random
-import math
 import logging
-from typing import List, Tuple, Optional
+import pickle
+from typing import List, Tuple
 
 from agent.agent import Agent
 from .mcts_node import MCTSNode, ConversationState
@@ -17,8 +16,8 @@ BASE_PROMPT = (
     "You are roleplaying as Agent {agent}. "
     "Here is the dialogue so far: "
     "{history}\n\n"
-    "What is your response? "
-    "Keep your response SHORT, limited to 2-3 sentences."
+    "What is your response? Just give your answer, no formalities, "
+    "do not repeat your name, and keep your response SHORT, 2-3 sentences."
 )
 
 class ConversationPlanner:
@@ -36,7 +35,7 @@ class ConversationPlanner:
             branching_factor: int = 3,
             rollout_depth: int = 5,
             num_simulations: int = 5,
-            exploration_constant: float = math.sqrt(2),
+            exploration_constant: float = 1.414,
             temperature: float = 0.7,
         ):
         """
@@ -69,11 +68,7 @@ class ConversationPlanner:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
             self.logger.setLevel(logging.INFO)
-        
-        # Statistics tracking
-        self.total_simulations_run = 0
-        self.total_nodes_created = 0
-    
+            
     def plan_conversation(self, 
             initial_prompt: str, 
             num_candidates: int = 5
@@ -90,27 +85,24 @@ class ConversationPlanner:
         """
         
         # Generate candidate responses from Agent 2
-        print(f"Generating {num_candidates} candidate responses...")
+        self._log(f"Generating {num_candidates} candidate responses...")
         candidates = [
             self.agents[1].get_response(initial_prompt) 
             for _ in range(num_candidates)
         ]
         
-        print(f"Evaluating {len(candidates)} candidates with MCTS...")
+        self._log(f"Evaluating {len(candidates)} candidates with MCTS...")
         
         # Evaluate each candidate using MCTS
         results = []
         for i, candidate in enumerate(candidates):
-            self._log_candidate_header(i+1, len(candidates), candidate)
-            
-            # Reset simulation counter for this candidate
-            self.total_simulations_run = 0
+            self._log(f"=== CANDIDATE {i+1}/{len(candidates)} ===")
                         
             # run MCTS for this candidate
             score = self._evaluate_candidate(initial_prompt, candidate)
             results.append((candidate, score))
             
-            self._log_candidate_result(i+1, candidate, score)
+            self._log(f"\nRESULT ({i+1}): {score}")
         
         return results
     
@@ -138,9 +130,12 @@ class ConversationPlanner:
         # Run MCTS simulations
         self._log(f"Running {self.num_simulations} MCTS simulations...")
         for simulation in range(self.num_simulations):
-            self._log_simulation_header(simulation + 1)
+            self._log(f" Simulation {simulation + 1}")
             
-            self._run_simulation(root, simulation + 1)
+            record = self._run_simulation(root)
+
+            with open(f"experiments/record_{simulation}.pkl", "wb") as f:
+                pickle.dump(record, f)
 
             self._log_tree_stats(root, simulation + 1)
         
@@ -151,42 +146,46 @@ class ConversationPlanner:
 
         return final_score
     
-    def _run_simulation(self, 
-            root: MCTSNode, 
-            simulation_num: int = 0
-        ) -> float:
+    def _run_simulation(self, root: MCTSNode) -> float:
         """Run a single MCTS simulation from the root node."""
         
+        record = {}
+        record["root"] = root
+
         # --- Selection phase --- 
         # traverse tree to terminal/leaf using UCT
         current, path = self._select(root)
         self._log_selection_path(path)
-        
+        record["select"] = path
+
         # --- Expansion phase --- 
         # If terminal: _expand returns `current`
         # Else (must be leaf): _expand returns a new child
         expanded_node = self._expand(current)
         self._log_expansion(expanded_node)
+        record["expand"] = expanded_node
         
-        # --- Simulation phase --- 
+        # --- Rollout phase --- 
         # random rollout from this node to terminal state
-        reward, simulation_path = self._simulate(expanded_node)
-        self._log_simulation_result(simulation_path, reward)
+        reward, rollout_path = self._rollout(expanded_node)
+        self._log_rollout_result(rollout_path, reward)
+        record["rollout"] = rollout_path
+        record["reward"] = reward
         
         # --- Backpropagation phase ---
         # update node values starting with the expanded node
         expanded_node.backpropagate(reward)
-        
-        self.total_simulations_run += 1
-    
-    def _select(self, node: MCTSNode) -> (MCTSNode, List[MCTSNode]):
+
+        return record
+            
+    def _select(self, node: MCTSNode) -> Tuple[MCTSNode, List[MCTSNode]]:
         """Select path through tree using UCT policy."""
         
         # initialize path
         path = [node]
 
-        # so long as we are not at a leaf (i.e. node is fully expanded) 
-        # and not terminal (max depth) get "best" child (UCT criteria)
+        # so long as we are not at a leaf (leaf = not fully expanded) 
+        # and not terminal (= max depth) get "best" child (UCT criteria)
         while (
             not node.is_leaf(self.branching_factor) and 
             not node.is_terminal(self.max_depth)
@@ -205,31 +204,26 @@ class ConversationPlanner:
         
         # Generate next message based on current turn
         current_state = node.state
-
-        # go to the other agent
-        next_turn = (current_state.current_turn + 1) % 2
-        agent = next_turn + 1
+        current_turn = current_state.current_turn
+        agent = current_turn + 1
 
         # get agent's message
-        # prompt = self._build_prompt(current_state, agent=agent)
         next_message = self._get_agent_response(current_state, agent=agent)
         
         # create new state
-        new_messages = current_state.messages + [next_message]
         new_state = ConversationState(
-            messages=new_messages,
-            current_turn=next_turn,
+            messages=current_state.messages + [next_message],
+            current_turn=(current_turn + 1) % 2,
             depth=current_state.depth + 1
         )
         
         # Add child node
-        child = node.add_child(next_message, new_state)
-        self.total_nodes_created += 1
+        child = node.add_child(action=next_message, state=new_state)
 
         return child
     
-    def _simulate(self, node: MCTSNode) -> Tuple[float, List[str]]:
-        """Simulate random conversation from current node to terminal state."""
+    def _rollout(self, node: MCTSNode) -> Tuple[float, List[str]]:
+        """Rollout random conversation from current node to terminal state."""
         
         current_state = node.state
                 
@@ -248,7 +242,7 @@ class ConversationPlanner:
 
             # get response
             agent = simulation_turn + 1
-            next_message = self._get_agent_response(current_state, agent=agent)
+            next_message = self._get_agent_response(temp_state, agent=agent)
             
             simulation_messages.append(next_message)
             simulation_depth += 1
@@ -272,8 +266,7 @@ class ConversationPlanner:
             history=state.get_annotated_messages(),
             agent=agent
         )
-
-        print(f"\n\n[DEBUG] Prompt:\n{prompt}\n")
+        # print(f"\n\n[DEBUG] Prompt:\n{prompt}\n")
 
         response = self.agents[agent - 1].get_response(prompt)
 
@@ -282,37 +275,11 @@ class ConversationPlanner:
     # ----------------------
     # Logging helper methods
     # ----------------------
-
-    def _log_header(self, title: str):
-        """Log a formatted header."""
-        self.logger.info("\n" + "=" * 80)
-        self.logger.info(f"{title:^80}")
-        self.logger.info("=" * 80)
-    
-    def _log_separator(self):
-        """Log a separator line."""
-        self.logger.info("-" * 80)
     
     def _log(self, message: str):
         """Log an info message."""
         self.logger.info(message)
-    
-    def _log_candidate_header(self, candidate_num: int, total_candidates: int, candidate: str):
-        """Log candidate evaluation header."""
-        self.logger.info(f"\n{'='*20} CANDIDATE {candidate_num}/{total_candidates} {'='*20}")
-        self.logger.info(f"Candidate Response: \"{candidate[:100]}{'...' if len(candidate) > 100 else ''}\"")
-        self.logger.info("-" * 60)
-    
-    def _log_candidate_result(self, candidate_num: int, candidate: str, score: float):
-        """Log candidate evaluation result."""
-        self.logger.info(f"\nCandidate {candidate_num} Final Score: {score:.6f}")
-        self.logger.info("=" * 60)
-    
-    def _log_simulation_header(self, simulation_num: int):
-        """Log simulation header."""
-        # if simulation_num <= 5 or simulation_num % 10 == 0:  # Log first 5 and every 10th
-        self.logger.info(f"\n  --- Simulation {simulation_num} ---")
-    
+
     def _log_selection_path(self, path: List[MCTSNode]):
         """Log the selection path through the tree."""
 
@@ -337,19 +304,15 @@ class ConversationPlanner:
             f"(depth={expanded_node.state.depth})"
         )
 
-    def _log_simulation_result(self, simulation_path: List[str], reward: float):
+    def _log_rollout_result(self, simulation_path: List[str], reward: float):
         """Log simulation rollout and result."""
-        # Only log detailed simulations for first few
-        # if self.total_simulations_run < 5:
         if simulation_path:
             self.logger.info("  Simulation Rollout:")
             for step in simulation_path:
-                # step_preview = self._response_preview(step)
-                step_preview = step
+                step_preview = self._response_preview(step)
+                # step_preview = step
                 self.logger.info(f"    {step_preview}")
         self.logger.info(f"  Simulation Reward: {reward:.6f}")
-        # elif self.total_simulations_run % 10 == 0:
-        # self.logger.info(f"  Reward: {reward:.6f}")
     
     def _log_tree_stats(self, root: MCTSNode, simulation_num: int):
         """Log tree statistics."""
@@ -372,8 +335,11 @@ class ConversationPlanner:
             # Sort children by average reward
             sorted_children = sorted(root.children, key=lambda x: x.get_average_reward(), reverse=True)
             for i, child in enumerate(sorted_children[:5]):  # Show top 5
-                action_preview = child.action[:60] + "..." if child.action and len(child.action) > 60 else child.action
-                self.logger.info(f"    {i+1}. \"{action_preview}\" -> visits={child.visits}, avg_reward={child.get_average_reward():.6f}")
+                action_preview = self._response_preview(child.action)
+                self.logger.info(
+                    f"    {i+1}. \"{action_preview}\" -> visits={child.visits}, "
+                    f"avg_reward={child.get_average_reward():.6f}"
+                )
     
     def _response_preview(self, response: str, max_length: int = 50) -> str:
         """Shortens a response to `max_length`"""

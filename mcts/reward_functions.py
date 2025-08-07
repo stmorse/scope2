@@ -63,10 +63,12 @@ class SafetyReward(RewardFunction):
             chat, return_tensors="pt").to(self.model.device)
     
         with torch.no_grad():
-            logits = self.model(input_ids).logits     # [B, T, |V|]
+            # [B, T, |V|]  [batch, seq length/#tokens in input, vocab size]
+            # (vocab in Llama is ~32k)
+            logits = self.model(input_ids).logits     
         
         # token after the prompt
-        first_logits = logits[0, -1]                  
+        first_logits = logits[0, -1]                
         
         # probabilities over vocab
         return F.softmax(first_logits, dim=-1)
