@@ -7,10 +7,10 @@ import random
 import math
 import logging
 from typing import List, Tuple, Optional
+
 from agent.agent import Agent
-# from llm_providers import LLMProvider
-from mcts_node import MCTSNode, ConversationState
-from reward_functions import RewardFunction
+from mcts.mcts_node import MCTSNode, ConversationState
+from mcts.reward_functions import RewardFunction
 
 
 class ConversationPlanner:
@@ -84,7 +84,8 @@ class ConversationPlanner:
         # Generate candidate responses from Agent 2
         print(f"Generating {num_candidates} candidate responses...")
         candidates = [
-            self.agents[1].get_response(prompt) for _ in range(num_candidates)
+            self.agents[1].get_response(initial_prompt) 
+            for _ in range(num_candidates)
         ]
         
         print(f"Evaluating {len(candidates)} candidates with MCTS...")

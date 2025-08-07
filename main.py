@@ -6,9 +6,9 @@ import argparse
 import os
 
 from agent.agent import Agent
-from conversation_planner import ConversationPlanner
+from mcts.conversation_planner import ConversationPlanner
 # from llm_providers import OpenAIProvider, OllamaProvider, MockProvider
-from reward_functions import WordCountReward
+from mcts.reward_functions import WordCountReward
 
 DEFAULT_PROMPT = "What are your thoughts on artificial intelligence?"
 DEFAULT_API_KEY = "asdf"
@@ -38,24 +38,6 @@ def main():
         Agent(provider=args.provider, model=args.model, config=config) 
         for _ in range(2)
     ]
-    
-    # try:
-    #     if args.provider == "openai":
-    #         client = OpenAIProvider(args.model)
-    #         print(f"Using OpenAI model: {args.model}")
-    
-    #     elif args.provider == "ollama":
-    #         client = OllamaProvider(args.model, args.ollama_host)
-    #         print(f"Using Ollama model: {args.model} (host: {args.ollama_host})")
-
-    #     else:
-    #         client = MockProvider()
-    #         print("Using mock provider for demonstration.")
-
-    # except Exception as e:
-    #     print(f"Error connecting to {args.provider}: {e}")
-    #     print("Using mock provider instead.")
-    #     client = MockProvider()
 
     # Initialize reward function
     if args.reward == "words":

@@ -1,8 +1,8 @@
 from .llm_client import LLMClient
 
 class Agent:
-    def __init__(self, provider: str, model: str):
-        self.client = LLMClient(provider, model)
+    def __init__(self, provider: str, model: str, config: dict):
+        self.client = LLMClient(provider, model, config)
 
     def get_response(self, prompt: str) -> str:
         """Generate response using agent's client"""
