@@ -4,12 +4,15 @@ Uses Monte Carlo Tree Search with UCT policy to select optimal LLM responses.
 """
 
 import logging
+import os
 import pickle
 from typing import List, Tuple
 
 from agent.agent import Agent
 from .mcts_node import MCTSNode, ConversationState
 from .reward_functions import RewardFunction
+
+BASE_PATH = "experiments"
 
 BASE_PROMPT = (
     "You are having a conversation with another agent. "
@@ -37,6 +40,7 @@ class ConversationPlanner:
             num_simulations: int = 5,
             exploration_constant: float = 1.414,
             temperature: float = 0.7,
+            dname: str = "test"
         ):
         """
         Initialize conversation planner.
@@ -50,6 +54,7 @@ class ConversationPlanner:
             num_simulations: Number of MCTS simulations to run
             exploration_constant: UCT exploration parameter
             temperature: Temperature for LLM generation
+            dname: directory name to save records
         """
         self.agents = agents
         self.reward_function = reward_function
@@ -59,6 +64,11 @@ class ConversationPlanner:
         self.num_simulations = num_simulations
         self.exploration_constant = exploration_constant
         self.temperature = temperature
+        self.dname = dname
+
+        # ensure directory exists
+        path = os.path.join(BASE_PATH, self.dname)
+        os.makedirs(path, exist_ok=True)
         
         # Initialize logging
         self.logger = logging.getLogger('MCTS_ConversationPlanner')
@@ -87,7 +97,7 @@ class ConversationPlanner:
         # Generate candidate responses from Agent 2
         self._log(f"Generating {num_candidates} candidate responses...")
         candidates = [
-            self.agents[1].get_response(initial_prompt) 
+            self.agents[1].get_response(initial_prompt, forcing=True) 
             for _ in range(num_candidates)
         ]
         
@@ -99,14 +109,23 @@ class ConversationPlanner:
             self._log(f"=== CANDIDATE {i+1}/{len(candidates)} ===")
                         
             # run MCTS for this candidate
-            score = self._evaluate_candidate(initial_prompt, candidate)
+            score, records = self._evaluate_candidate(initial_prompt, candidate)
             results.append((candidate, score))
+
+            # save records
+            path = os.path.join(
+                BASE_PATH, self.dname, f"candidate_{i}.pkl")
+            with open(path, "wb") as f:
+                pickle.dump(records, f)
             
             self._log(f"\nRESULT ({i+1}): {score}")
         
         return results
     
-    def _evaluate_candidate(self, initial_prompt: str, candidate_response: str) -> float:
+    def _evaluate_candidate(self, 
+            initial_prompt: str, 
+            candidate_response: str
+        ) -> Tuple[float, List[dict]]:
         """
         Evaluate a single candidate response using MCTS.
         
@@ -128,14 +147,13 @@ class ConversationPlanner:
         root = MCTSNode(initial_state, parent=None)
         
         # Run MCTS simulations
+        records = []
         self._log(f"Running {self.num_simulations} MCTS simulations...")
         for simulation in range(self.num_simulations):
             self._log(f" Simulation {simulation + 1}")
             
             record = self._run_simulation(root)
-
-            with open(f"experiments/record_{simulation}.pkl", "wb") as f:
-                pickle.dump(record, f)
+            records.append(record)
 
             self._log_tree_stats(root, simulation + 1)
         
@@ -144,7 +162,7 @@ class ConversationPlanner:
         
         self._log_final_tree_analysis(root)
 
-        return final_score
+        return final_score, records
     
     def _run_simulation(self, root: MCTSNode) -> float:
         """Run a single MCTS simulation from the root node."""
@@ -268,7 +286,7 @@ class ConversationPlanner:
         )
         # print(f"\n\n[DEBUG] Prompt:\n{prompt}\n")
 
-        response = self.agents[agent - 1].get_response(prompt)
+        response = self.agents[agent - 1].get_response(prompt, forcing=True)
 
         return response
 

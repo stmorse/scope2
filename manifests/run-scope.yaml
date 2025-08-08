@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: run-scope2
+  namespace: fais-1
+spec:
+  securityContext:
+    runAsUser: 270999
+    runAsGroup: 1132
+  nodeSelector:
+    kubernetes.io/hostname: gu15.sciclone.wm.edu
+  containers:
+    - name: run-scope2
+      image: ghcr.io/stmorse/scope2:latest
+      resources:
+        requests:
+          memory: '64Gi'
+          nvidia.com/gpu: '1'
+          cpu: '4'
+        limits:
+          memory: '64Gi'
+          nvidia.com/gpu: '1'
+          cpu: '4'
+      command: ['/bin/bash']
+      args:
+        - '-c'
+        - |
+          echo "Running scope2 container..."
+          python main.py \
+            --provider ollama \
+            --candidates 1 \
+            --simulations 2 \
+            --depth 3 \
+            --reward harm \
+            --dname test0
+          sleep infinity
+      env:
+        - name: HF_HOME
+          value: '/sciclone/home/stmorse/.cache/huggingface/hub'
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hf-secret
+              key: HF_TOKEN
+      volumeMounts:
+        - name: home
+          mountPath: /sciclone/home/stmorse
+        # - name: data
+        #   mountPath: /sciclone/data10/twford/reddit/reddit
+        - name: scope2
+          mountPath: /app
+  volumes:
+    - name: home
+      nfs:
+        server: 128.239.56.166
+        path: /sciclone/home/stmorse
+    # - name: data
+    #   nfs:
+    #     server: 128.239.56.30
+    #     path: /sciclone/data10/twford/reddit/reddit
+    - name: scope2
+      nfs:
+        server: 128.239.59.144
+        path: /sciclone/geograd/stmorse/chs/scope2

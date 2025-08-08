@@ -6,6 +6,7 @@ Implements Upper Confidence Tree (UCT) policy for node selection.
 import math
 from typing import List, Optional
 from dataclasses import dataclass
+from itertools import accumulate
 
 
 @dataclass
@@ -48,6 +49,11 @@ class ConversationState:
                 "role": role, "content": message
             })
         return chat
+
+    def convert_to_cumulative(self) -> List[str]:
+        """Convert to cumulative list of strings"""
+        cumulative = list(accumulate(self.messages, lambda x, y: f"{x}\n{y}"))
+        return cumulative
 
 
 

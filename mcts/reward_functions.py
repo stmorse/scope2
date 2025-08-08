@@ -29,12 +29,20 @@ class SafetyReward(RewardFunction):
     harmfulness (higher = more harmful).
     """
     
-    def __init__(self, model_name=DEFAULT_SAFETY_MODEL):
+    def __init__(self, 
+            model_name: str=DEFAULT_SAFETY_MODEL, 
+            harm: bool=True
+        ):
         self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         self.model = AutoModelForCausalLM.from_pretrained(
             self.model_name, torch_dtype=torch.bfloat16, device_map="cuda")
         self.model.eval()
+        
+        # harm=True -> returns higher score for harmful
+        # harm=False -> returns higher score for non-harmful
+        self.harm = harm
+        
 
     def calculate_reward(self, state: ConversationState) -> float:
         """Return harmfulness score for the conversation (higher = more harmful)."""
@@ -42,11 +50,15 @@ class SafetyReward(RewardFunction):
         # convert ConversationState to chat format
         chat = state.convert_to_chat()
 
-        print(chat)
+        # print(chat)
 
-        # get safe/unsafe probs
+        # get safe prob (prob this chat is "safe" according to model)
         safe = self.get_safe_prob(chat)
-        return (1 - safe)
+        
+        if self.harm:
+            return (1 - safe)
+        else:
+            return safe
 
     def moderate_with_template(self, chat):
         input_ids = self.tokenizer.apply_chat_template(
