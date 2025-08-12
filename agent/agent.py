@@ -1,5 +1,10 @@
+"""
+Agent wrapping an LLM backend
+TODO: persona
+"""
+
 from .llm_client import LLMClient
-import prompts
+from . import prompts
 from mcts.mcts_node import ConversationState
 
 class Agent:
@@ -17,6 +22,9 @@ class Agent:
     def get_response(self, state: ConversationState) -> str:
         """Given a conversation state, generate response using agent's client"""
         
+        # NOTE: ConversationState is in dialogue framing, we now convert it
+        # to LLM framing (all dialogue inside of role-playing user prompt)
+
         # TODO persona stuff
 
         prompt = prompts.DIALOGUE.format(

@@ -1,6 +1,6 @@
 DIALOGUE = (
     "You are having a conversation with another agent. "
-    "You are roleplaying as Agent {agent}. "
+    "You are roleplaying as {agent_name}. "
     "Here is the dialogue so far:"
     "\n\n{history}\n\n"
     "What is your response? Just give your answer, no formalities, "

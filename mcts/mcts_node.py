@@ -12,45 +12,45 @@ from itertools import accumulate
 @dataclass
 class ConversationState:
     """Represents the state of a conversation at a given point."""
-    messages: List[str]  # Alternating Agent1, Agent2, Agent1, Agent2, ...
-    current_turn: int    # 0 for Agent1, 1 for Agent2
-    depth: int           # effectively len(messages)
+    messages: List[str]   # Alternating Agent 0, Agent 1, ...
+    
+    @property
+    def depth(self) -> int:
+        return len(self.messages)
+    
+    @property
+    def current_turn(self) -> int:
+        """Which agent we are awaiting response from"""
+        return self.depth % 2   # 1 (A0 just spoke) -> 1 (awaiting A1), 2 -> 0
 
-    def get_all_messages(self) -> List[str]:
-        return self.messages
-
-    def get_agent_messages(self, agent) -> List[str]:
-        """Returns all messages from `agent` (Agent 1 / Agent 2)"""
-        msgs = [self.messages[i] for i in range(agent-1, len(self.messages), 2)]
-        return msgs
+    def add_message(self, message: str) -> 'ConversationState':
+        new_messages = self.messages + [message]
+        return ConversationState(messages=new_messages)
     
     def get_annotated_messages(self) -> str:
         """Get formatted conversation history."""
         history = []
         for i, message in enumerate(self.messages):
-            agent = "Agent1" if i % 2 == 0 else "Agent2"
+            agent = "Agent 0" if i % 2 == 0 else "Agent 1"
             history.append(f"{agent}: {message}")
         return history
 
     def convert_to_chat(self) -> List[dict]:
         """
         Convert to API-style chat history.  
-        Assumes Agent1=user, Agent2=assistant
+        Assumes Agent 0=user, Agent 1=assistant
         """
-
         chat = []
         for i, message in enumerate(self.messages):
             role = "user" if i % 2 == 0 else "assistant"
-            chat.append({
-                "role": role, "content": message
-            })
+            chat.append({"role": role, "content": message})
         return chat
 
     def convert_to_cumulative(self) -> List[str]:
         """Convert to cumulative list of strings"""
         cumulative = list(accumulate(self.messages, lambda x, y: f"{x}\n{y}"))
         return cumulative
-    
+
 
 class MCTSNode:
     """Node in the MCTS tree for conversation planning."""

@@ -64,8 +64,8 @@ class TopicReward(RewardFunction):
 
 class SafetyReward(RewardFunction):
     """
-    Reward function that uses Llama Guard to score conversation 
-    harmfulness (higher = more harmful).
+    Reward function that uses Llama Guard to score conversation harmfulness. 
+    If self.harm=True, higher = more harmful; self.harm=False, higher = safer.
     """
     
     def __init__(self, 
@@ -80,11 +80,10 @@ class SafetyReward(RewardFunction):
         
         # harm=True -> returns higher score for harmful
         # harm=False -> returns higher score for non-harmful
-        self.harm = harm
-        
+        self.harm = harm      
 
     def calculate_reward(self, state: ConversationState) -> float:
-        """Return harmfulness score for the conversation (higher = more harmful)."""
+        """Return harmfulness score for the conversation (based on self.harm)"""
         
         # convert ConversationState to chat format
         chat = state.convert_to_chat()
@@ -92,11 +91,8 @@ class SafetyReward(RewardFunction):
         # get safe prob (prob this chat is "safe" according to model)
         safe = self.get_safe_prob(chat)
         
-        if self.harm:
-            return (1 - safe)
-        else:
-            return safe
-
+        return (1 - safe) if self.harm else safe
+        
     def moderate_with_template(self, chat):
         input_ids = self.tokenizer.apply_chat_template(
             chat, return_tensors="pt").to("cuda")

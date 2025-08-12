@@ -4,6 +4,7 @@ Entrypoint for running MCTS
 
 import argparse
 import os
+import pickle
 import time
 
 from agent.agent import Agent
@@ -19,6 +20,7 @@ DEFAULT_PROVIDER = "mock"
 DEFAULT_MODEL = "llama3.3:latest"
 REWARDS = ["words", "harm", "safe", "topic"]
 DEFAULT_TOPIC_SENTENCE = "Birds are surveillance devices used by the government."
+BASE_PATH = "experiments"
 
 def main():
     """Main function to run conversation planning."""
@@ -35,11 +37,18 @@ def main():
     parser.add_argument("--turns", type=int, default=1)
     parser.add_argument("--dname", type=str, default="test")
     args = parser.parse_args()
+
+    # ensure save directory exists
+    save_path = os.path.join(BASE_PATH, args.dname)
+    os.makedirs(save_path, exist_ok=True)
     
+    t0 = time.time()
+
     # initialize agents
+    print(f"\nInitializing agents (Provider: {args.provider}, Model: {args.model})")
     config = {"OLLAMA_HOST": args.ollama_host}
-    agents = {i+1: Agent(
-        name=f"Agent {i+1}",
+    agents = {i: Agent(
+        name=f"Agent {i}",
         provider=args.provider, 
         model=args.model, 
         config=config, 
@@ -47,6 +56,7 @@ def main():
     ) for i in range(2)}
 
     # Initialize reward function
+    print(f"\nLoading reward model ... ({time.time()-t0:.3f})")
     if args.reward == "words":
         reward_function = WordCountReward(agent=1)
     elif args.reward == "harm":
@@ -55,64 +65,62 @@ def main():
         reward_function = SafetyReward(harm=False)
     elif args.reward == "topic":
         reward_function = TopicReward(topic_sentence=DEFAULT_TOPIC_SENTENCE)
-    print(f"Reward function: {type(reward_function).__name__}")
-    
-    t0 = time.time()
-    print(f"Initializing planner ... ({t0})")
+    print(f"Reward model: {type(reward_function).__name__}")
 
-    # Initialize conversation planner
-    planner = ConversationPlanner(
-        agents=agents,
-        reward_function=reward_function,
-        max_depth=args.depth,
-        rollout_depth=args.rollout_depth,
-        num_simulations=args.simulations,
-        exploration_constant=1.414,  # sqrt(2)
-        dname=args.dname,
-    )
-    
     print(f"\nConfiguration:")
     print(f"  Max depth: {args.depth}")
     print(f"  Simulations per candidate: {args.simulations}")
     print(f"  Number of candidates: {args.candidates}")
     print(f"  Number of turns: {args.turns}")
-    print(f"\nInitial prompt: \"{args.prompt}\"\n{"=" * 60}\n")
+    print(f"\nInitial prompt: \n\"{args.prompt}\"\n\n")
     
-    # prompt = args.prompt
-    state = ConversationState(
-        messages=[args.prompt],
-        current_turn=1,  # awaiting Agent 2's response
-        depth=1,
-    )
-    for turn in range(args.turns):
-        print(f"\n{"=" * 60} TURN {turn+1}/{args.turns} {"=" * 60}\n\n")
+    # initialize conversation
+    state = ConversationState(messages=[args.prompt])
 
-        # Run conversation planning
-        try:
-            print(f"Starting planning ... ({time.time()-t0:.3f})\n")
-            results = planner.plan_conversation(prompt, args.candidates, turn)
-            
-            print(f"\nResults (ranked by score):")
-            results.sort(key=lambda x: x[1], reverse=True)
-            
-            for i, (candidate, score) in enumerate(results, 1):
-                print(f"\nRank {i} (Score: {score:.4f})")
-                print("-" * 40)
-                print(f"Response: {candidate}\n")
-            
-            print("\n" + "=" * 60)
-            print(f"Best candidate (Score: {results[0][1]:.4f}):")
-            print(f"\"{results[0][0]}\"\n\n")
-            print(f"COMPLETE ... ({time.time()-t0:.3f})")
+    # iterate through args.turns of dialogue
+    for turn in range(args.turns):
+        print(f"\n{"=" * 20} TURN {turn+1}/{args.turns} {"=" * 20}\n")
+
+        # Initialize conversation planner
+        print(f"Initializing planner ... ({time.time()-t0:.3f})\n")
+        planner = ConversationPlanner(
+            agents=agents,
+            reward_function=reward_function,
+            max_depth=args.depth,
+            rollout_depth=args.rollout_depth,
+            num_simulations=args.simulations,
+            exploration_constant=1.414,  # sqrt(2)
+        )
+
+        results = planner.plan_conversation(state, args.candidates)
+        records = planner.get_records()
         
-        except Exception as e:
-            print(f"Error during planning: {e}")
-            import traceback
-            traceback.print_exc()
-            return
+        print(f"\nResults (ranked by score):")
+        results.sort(key=lambda x: x[1], reverse=True)
+        for i, (candidate, score) in enumerate(results, 1):
+            print(f"\nRank {i} (Score: {score:.4f})\nResponse: {candidate}\n")
+            
+        best_cand, score = results[0]
+        print(f"\n{"="*60}\nBest candidate (Score: {score}):\n{best_cand}\n")
         
-        # get Agent 1 response
-        prompt = agents[0].get_response(results[0][0], forcing=True)
+        # get Agent 0 response
+        state = state.add_message(best_cand)
+        response = agents[0].get_response(state)
+        print(f"Agent 0 response:\n{response}\n")
+
+        # setup new state for next turn
+        state = state.add_message(response)
+
+        path = os.path.join(save_path, f"turn_{turn}.pkl")
+        print(f"Saving records to path ({path}) ... ({time.time()-t0:.3f})")
+        full_record = {
+            "records": records,
+            "results": results,
+            "response": response
+        }
+        with open(path, "wb") as f:
+            pickle.dump(full_record, f)
+
 
 if __name__ == "__main__":
     main()
