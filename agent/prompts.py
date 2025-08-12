@@ -1,3 +1,8 @@
+PERSONA = (
+    "You are roleplaying as someone named {agent_name}. "
+    "You have the following personality: {personality}."
+)
+
 DIALOGUE = (
     "You are having a conversation with another agent. "
     "You are roleplaying as {agent_name}. "

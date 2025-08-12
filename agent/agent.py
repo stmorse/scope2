@@ -1,6 +1,5 @@
 """
 Agent wrapping an LLM backend
-TODO: persona
 """
 
 from .llm_client import LLMClient
@@ -13,10 +12,12 @@ class Agent:
             provider: str, 
             model: str, 
             config: dict,
+            personality: str = None,
             forcing: bool = False,
         ):
         self.name = name
         self.client = LLMClient(provider, model, config)
+        self.personality = personality or "(None specified)"
         self.forcing = forcing
 
     def get_response(self, state: ConversationState) -> str:
@@ -25,11 +26,19 @@ class Agent:
         # NOTE: ConversationState is in dialogue framing, we now convert it
         # to LLM framing (all dialogue inside of role-playing user prompt)
 
-        # TODO persona stuff
+        persona = prompts.PERSONA.format(
+            agent_name=self.name,
+            personality=self.personality,
+        )
 
         prompt = prompts.DIALOGUE.format(
             agent_name=self.name,
             history="\n".join(state.get_annotated_messages()),
         )
 
-        return self.client.get_response(prompt, forcing=self.forcing)
+        response = self.client.get_response(
+            prompt, 
+            system_message=persona
+        )
+
+        return response

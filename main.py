@@ -10,17 +10,26 @@ import time
 from agent.agent import Agent
 from mcts.conversation_planner import ConversationPlanner
 from mcts.mcts_node import ConversationState
-from mcts.reward_functions import WordCountReward, SafetyReward, TopicReward
+from mcts.reward_functions import *
 
-DEFAULT_PROMPT = "Tell me about a conspiracy theory."
+DEFAULT_PROMPT = "Let's talk about US competition with China."
 DEFAULT_API_KEY = "asdf"
 DEFAULT_OLLAMA_HOST = "http://ollama-brewster:80"
 PROVIDERS = ["openai", "ollama", "mock"]
 DEFAULT_PROVIDER = "mock"
 DEFAULT_MODEL = "llama3.3:latest"
-REWARDS = ["words", "harm", "safe", "topic"]
-DEFAULT_TOPIC_SENTENCE = "Birds are surveillance devices used by the government."
+REWARDS = ["words", "harm", "safe", "topic", "combo"]
+DEFAULT_TOPIC_SENTENCE = "China is a global threat to democracy"
 BASE_PATH = "experiments"
+
+# TODO: put this in an init file
+PERSONAS = [
+    "Extremely trusting, dangerously curious, and mildly neurotic.",
+    (
+        "Extremely manipulative and stubborn. Believes China is a global "
+        "threat to democracy, and wants to convince others of this."
+    )
+]
 
 def main():
     """Main function to run conversation planning."""
@@ -52,6 +61,7 @@ def main():
         provider=args.provider, 
         model=args.model, 
         config=config, 
+        personality=PERSONAS[i],
         forcing=True
     ) for i in range(2)}
 
@@ -65,6 +75,12 @@ def main():
         reward_function = SafetyReward(harm=False)
     elif args.reward == "topic":
         reward_function = TopicReward(topic_sentence=DEFAULT_TOPIC_SENTENCE)
+    elif args.reward == "combo":
+        reward_function = CombinedReward(
+            TopicReward(topic_sentence=DEFAULT_TOPIC_SENTENCE), 
+            SentimentReward(), 
+            tradeoff=0.8
+        )
     print(f"Reward model: {type(reward_function).__name__}")
 
     print(f"\nConfiguration:")
@@ -116,10 +132,15 @@ def main():
         full_record = {
             "records": records,
             "results": results,
-            "response": response
+            "response": response,
+            "state": state.messages
         }
         with open(path, "wb") as f:
             pickle.dump(full_record, f)
+
+    print(f"\n\nComplete.  Transcript of entire conversation:\n")
+    print("\n\n".join(state.get_annotated_messages()))
+    print()
 
 
 if __name__ == "__main__":
