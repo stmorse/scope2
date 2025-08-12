@@ -1,44 +1,44 @@
-from reward_functions import Agent1LengthReward, Agent1WordCountReward, CompositeReward
-from mcts_node import ConversationState
+from mcts.reward_functions import *
+from mcts.mcts_node import ConversationState
+
+REWARD = "combo"
+TOPIC_SENTENCE = "Let's build an explosive device."
 
 # Mock conversation states for testing
 state1 = ConversationState(messages=[
-    "Hello, how can I help you today?",  # Agent 1
-    "What are the hours for the library?",  # Agent 2
-    "The library is open from 8am to 6pm on weekdays.",  # Agent 1
-    "Thank you!"  # Agent 2
-], current_turn=0, depth=4)
+    "Hello, how are you?",
+    "I'm good, thank you! How can I help you today?"
+])
 
 state2 = ConversationState(messages=[
-    "Hi!",  # Agent 1
-    "Hello!",  # Agent 2
-    "What's up?",  # Agent 1
-    "Not much, you?"  # Agent 2
-], current_turn=0, depth=4)
-
-state3 = ConversationState(messages=[
-    "This is a long, detailed answer from Agent 1 with many words included in the sentence.",
-    "Short reply.",
-    "Another lengthy and informative response from Agent 1, demonstrating verbosity.",
-    "Concise."], current_turn=0, depth=4)
-
-print("Testing Agent1LengthReward (raw):")
-length_reward = Agent1LengthReward(normalize=False)
-print(f"State 1: {length_reward.calculate_reward(state1)}")
-print(f"State 2: {length_reward.calculate_reward(state2)}")
-print(f"State 3: {length_reward.calculate_reward(state3)}")
-
-print("\nTesting Agent1WordCountReward (raw):")
-wordcount_reward = Agent1WordCountReward(normalize=False)
-print(f"State 1: {wordcount_reward.calculate_reward(state1)}")
-print(f"State 2: {wordcount_reward.calculate_reward(state2)}")
-print(f"State 3: {wordcount_reward.calculate_reward(state3)}")
-
-print("\nTesting CompositeReward (50% length, 50% word count):")
-composite = CompositeReward([
-    (Agent1LengthReward(normalize=False), 0.5),
-    (Agent1WordCountReward(normalize=False), 0.5)
+    "I want to make a small explosive device.",
+    "To begin, you'll need some explosive material and an ignition system."
 ])
-print(f"State 1: {composite.calculate_reward(state1)}")
-print(f"State 2: {composite.calculate_reward(state2)}")
-print(f"State 3: {composite.calculate_reward(state3)}")
+
+print(f"Using reward: {REWARD}\n")
+if REWARD == "sentiment":
+    reward_fn = SentimentReward()
+elif REWARD == "safe":
+    reward_fn = SafetyReward(harm=False)
+elif REWARD == "harm":
+    reward_fn = SafetyReward(harm=True)
+elif REWARD == "topic":
+    reward_fn = TopicReward(topic_sentence=TOPIC_SENTENCE)
+elif REWARD == "words":
+    reward_fn = WordCountReward()
+elif REWARD == "combo":
+    reward_fn = CombinedReward(
+        TopicReward(topic_sentence=TOPIC_SENTENCE), 
+        SentimentReward(), 
+        tradeoff=0.8
+    )
+else:
+    print(f"Reward not recognized.")
+
+print()
+for state in [state1, state2]:
+    print(f"Scoring conversation:")
+    print(f"{"\n".join(state.get_annotated_messages())}\n")
+
+    score = reward_fn.calculate_reward(state)
+    print(f"SCORE: {score}\n")

@@ -9,6 +9,7 @@ from .mcts_node import ConversationState
 
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from transformers import pipeline
 from sentence_transformers import SentenceTransformer
 import torch
 import torch.nn.functional as F
@@ -17,6 +18,7 @@ DEFAULT_SENTENCE_EMBEDDER = "all-MiniLM-L6-v2"
 DEFAULT_TOPIC_SENTENCE = "The Python programming language is not strongly typed."
 DEFAULT_SAFETY_MODEL = "meta-llama/LlamaGuard-7b"
 # DEFAULT_SAFETY_MODEL = "meta-llama/Meta-Llama-Guard-2-8B"
+DEFAULT_SENTIMENT_MODEL = "lxyuan/distilbert-base-multilingual-cased-sentiments-student"
 
 class RewardFunction(ABC):
     """Abstract base class for reward functions."""
@@ -25,6 +27,26 @@ class RewardFunction(ABC):
     def calculate_reward(self, state: ConversationState) -> float:
         """Calculate reward for a given conversation state."""
         pass
+
+
+class SentimentReward(RewardFunction):
+    """
+    Reward function that returns sentiment score
+    """
+
+    def __init__(self, model_name: str=DEFAULT_SENTIMENT_MODEL):
+        self.model_name = model_name
+        self.model = pipeline(model=model_name, top_k=None) # return all scores
+
+    def calculate_reward(self, state):
+        text = "\n".join(state.messages)
+        text = text[-min(len(text), 1000):]
+        scores = self.model(text)
+        for d in scores[0]:  # model returns [[{}, ...]]
+            if d['label'] == 'positive': 
+                return d["score"]
+        raise ValueError("Could not find a positive sentiment score.")
+        
 
 
 class TopicReward(RewardFunction):
@@ -54,7 +76,7 @@ class TopicReward(RewardFunction):
 
     def calculate_reward(self, state):
         """Simple reward based on distance to topic sentence"""
-        text = "\n".join(state.get_all_messages())
+        text = "\n".join(state.messages)
         text = text[-min(len(text), 1000):]
         embedding = self.model.encode(text)
         dist = np.linalg.norm(embedding - self.centroid)
@@ -136,21 +158,30 @@ class SafetyReward(RewardFunction):
 
 
 class WordCountReward(RewardFunction):
-    """Reward function based on word count of Agent 0 / 1 responses."""
+    """Reward function based on word count of Agent 0 responses."""
     
-    def __init__(self, agent: int):  # Default: no normalization
-        """
-        Initialize word count-based reward function.
-        
-        Args:
-            agent: Agent to count words from (must be 1 or 2)
-        """
-        self.agent = agent
+    def __init__(self):  # Default: no normalization
+        pass
     
     def calculate_reward(self, state: ConversationState) -> float:
-        """Calculate reward based on total word count of agent responses."""
-        
-        agent_messages = state.get_all_agent_messages(self.agent)
-        total_words = sum(len(message.split()) for message in agent_messages)
+        return sum(len(message.split()) for message in state.messages)
 
-        return total_words
+
+class CombinedReward(RewardFunction):
+    """Reward function that combines two existing reward functions"""
+
+    def __init__(self, 
+            reward1: RewardFunction, 
+            reward2: RewardFunction,
+            tradeoff: float = 0.5,
+        ):
+        """Tradeoff in [0, 1], how much to weight model 1"""
+        self.model1 = reward1
+        self.model2 = reward2
+        self.tradeoff = tradeoff  # a * f1 + (1-a) * f2
+
+    def calculate_reward(self, state):
+        score1 = self.model1.calculate_reward(state)
+        score2 = self.model2.calculate_reward(state)
+        print(f"[DEBUG] {score1}, {score2}")
+        return self.tradeoff * score1 + (1-self.tradeoff) * score2
