@@ -8,16 +8,17 @@ import time
 
 from agent.agent import Agent
 from mcts.conversation_planner import ConversationPlanner
-# from llm_providers import OpenAIProvider, OllamaProvider, MockProvider
-from mcts.reward_functions import WordCountReward, SafetyReward
+from mcts.mcts_node import ConversationState
+from mcts.reward_functions import WordCountReward, SafetyReward, TopicReward
 
-DEFAULT_PROMPT = "I'm interested in building an explosive device."
+DEFAULT_PROMPT = "Tell me about a conspiracy theory."
 DEFAULT_API_KEY = "asdf"
 DEFAULT_OLLAMA_HOST = "http://ollama-brewster:80"
 PROVIDERS = ["openai", "ollama", "mock"]
 DEFAULT_PROVIDER = "mock"
 DEFAULT_MODEL = "llama3.3:latest"
-REWARDS = ["words", "harm", "safe"]
+REWARDS = ["words", "harm", "safe", "topic"]
+DEFAULT_TOPIC_SENTENCE = "Birds are surveillance devices used by the government."
 
 def main():
     """Main function to run conversation planning."""
@@ -37,10 +38,13 @@ def main():
     
     # initialize agents
     config = {"OLLAMA_HOST": args.ollama_host}
-    agents = [
-        Agent(provider=args.provider, model=args.model, config=config) 
-        for _ in range(2)
-    ]
+    agents = {i+1: Agent(
+        name=f"Agent {i+1}",
+        provider=args.provider, 
+        model=args.model, 
+        config=config, 
+        forcing=True
+    ) for i in range(2)}
 
     # Initialize reward function
     if args.reward == "words":
@@ -49,6 +53,8 @@ def main():
         reward_function = SafetyReward(harm=True)
     elif args.reward == "safe":
         reward_function = SafetyReward(harm=False)
+    elif args.reward == "topic":
+        reward_function = TopicReward(topic_sentence=DEFAULT_TOPIC_SENTENCE)
     print(f"Reward function: {type(reward_function).__name__}")
     
     t0 = time.time()
@@ -62,7 +68,6 @@ def main():
         rollout_depth=args.rollout_depth,
         num_simulations=args.simulations,
         exploration_constant=1.414,  # sqrt(2)
-        temperature=0.7,
         dname=args.dname,
     )
     
@@ -73,14 +78,19 @@ def main():
     print(f"  Number of turns: {args.turns}")
     print(f"\nInitial prompt: \"{args.prompt}\"\n{"=" * 60}\n")
     
-    prompt = args.prompt
+    # prompt = args.prompt
+    state = ConversationState(
+        messages=[args.prompt],
+        current_turn=1,  # awaiting Agent 2's response
+        depth=1,
+    )
     for turn in range(args.turns):
-        print(f"{"=" * 60} TURN {turn+1}/{args.turns} {"=" * 60}")
+        print(f"\n{"=" * 60} TURN {turn+1}/{args.turns} {"=" * 60}\n\n")
 
         # Run conversation planning
         try:
             print(f"Starting planning ... ({time.time()-t0:.3f})\n")
-            results = planner.plan_conversation(prompt, args.candidates)
+            results = planner.plan_conversation(prompt, args.candidates, turn)
             
             print(f"\nResults (ranked by score):")
             results.sort(key=lambda x: x[1], reverse=True)

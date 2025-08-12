@@ -14,14 +14,6 @@ from .reward_functions import RewardFunction
 
 BASE_PATH = "experiments"
 
-BASE_PROMPT = (
-    "You are having a conversation with another agent. "
-    "You are roleplaying as Agent {agent}. "
-    "Here is the dialogue so far: "
-    "{history}\n\n"
-    "What is your response? Just give your answer, no formalities, "
-    "do not repeat your name, and keep your response SHORT, 2-3 sentences."
-)
 
 class ConversationPlanner:
     """
@@ -32,28 +24,26 @@ class ConversationPlanner:
     """
     
     def __init__(self, 
-            agents: List[Agent],
+            agents: dict = None,
             reward_function: RewardFunction = None,
             max_depth: int = 3,
             branching_factor: int = 3,
             rollout_depth: int = 5,
             num_simulations: int = 5,
             exploration_constant: float = 1.414,
-            temperature: float = 0.7,
             dname: str = "test"
         ):
         """
         Initialize conversation planner.
         
         Args:
-            agents: list of Agents
+            agents: dict of Agents
             reward_function: Function to calculate conversation rewards
             max_depth: Maximum depth of search tree
             branching_factor: Max branching at each child
             rollout_depth: max number of turns post-expansion
             num_simulations: Number of MCTS simulations to run
             exploration_constant: UCT exploration parameter
-            temperature: Temperature for LLM generation
             dname: directory name to save records
         """
         self.agents = agents
@@ -63,7 +53,6 @@ class ConversationPlanner:
         self.rollout_depth = rollout_depth
         self.num_simulations = num_simulations
         self.exploration_constant = exploration_constant
-        self.temperature = temperature
         self.dname = dname
 
         # ensure directory exists
@@ -80,14 +69,14 @@ class ConversationPlanner:
             self.logger.setLevel(logging.INFO)
             
     def plan_conversation(self, 
-            initial_prompt: str, 
-            num_candidates: int = 5
+            initial_state: ConversationState, 
+            num_candidates: int = 5,
         ) -> List[Tuple[str, float]]:
         """
-        Plan conversation by evaluating multiple Agent 2 candidate responses.
+        Plan conversation by evaluating multiple candidate responses.
         
         Args:
-            initial_prompt: Initial message from Agent 1
+            initial_state: Initial set of messages
             num_candidates: Number of candidate responses to evaluate
             
         Returns:
@@ -97,7 +86,7 @@ class ConversationPlanner:
         # Generate candidate responses from Agent 2
         self._log(f"Generating {num_candidates} candidate responses...")
         candidates = [
-            self.agents[1].get_response(initial_prompt, forcing=True) 
+            self.agents[1].get_response(initial_state)
             for _ in range(num_candidates)
         ]
         
@@ -109,12 +98,12 @@ class ConversationPlanner:
             self._log(f"=== CANDIDATE {i+1}/{len(candidates)} ===")
                         
             # run MCTS for this candidate
-            score, records = self._evaluate_candidate(initial_prompt, candidate)
+            score, records = self._evaluate_candidate(initial_state, candidate)
             results.append((candidate, score))
 
             # save records
-            path = os.path.join(
-                BASE_PATH, self.dname, f"candidate_{i}.pkl")
+            fname = f"turn_{initial_state.depth}_candidate_{i}.pkl"
+            path = os.path.join(BASE_PATH, self.dname, fname)
             with open(path, "wb") as f:
                 pickle.dump(records, f)
             
@@ -123,28 +112,28 @@ class ConversationPlanner:
         return results
     
     def _evaluate_candidate(self, 
-            initial_prompt: str, 
+            initial_state: ConversationState, 
             candidate_response: str
         ) -> Tuple[float, List[dict]]:
         """
         Evaluate a single candidate response using MCTS.
         
         Args:
-            initial_prompt: Initial Agent 1 message
+            initial_state: Initial set of messages
             candidate_response: Agent 2 candidate response to evaluate
             
         Returns:
             Average reward score for this candidate
         """
-        # Create initial state with the candidate response
-        initial_state = ConversationState(
-            messages=[initial_prompt, candidate_response],
-            current_turn=0,  # Next turn is Agent 1
-            depth=1
+        # Create state with the candidate response
+        state = ConversationState(
+            messages=initial_state.get_all_messages + [candidate_response],
+            current_turn=0,  # we are awaiting Agent 1
+            depth=initial_state.depth + 1
         )
         
         # Create root node
-        root = MCTSNode(initial_state, parent=None)
+        root = MCTSNode(state, parent=None)
         
         # Run MCTS simulations
         records = []
@@ -226,7 +215,7 @@ class ConversationPlanner:
         agent = current_turn + 1
 
         # get agent's message
-        next_message = self._get_agent_response(current_state, agent=agent)
+        next_message = self.agents[agent].get_response(current_state)
         
         # create new state
         new_state = ConversationState(
@@ -260,7 +249,7 @@ class ConversationPlanner:
 
             # get response
             agent = simulation_turn + 1
-            next_message = self._get_agent_response(temp_state, agent=agent)
+            next_message = self.agents[agent].get_response(temp_state)
             
             simulation_messages.append(next_message)
             simulation_depth += 1
@@ -275,20 +264,7 @@ class ConversationPlanner:
         
         reward = self.reward_function.calculate_reward(final_state)
         return reward, final_state.get_annotated_messages()
-    
-    def _get_agent_response(self, state: ConversationState, agent: int) -> str:
-        """Get response for Agent `agent` based on conversation history."""
-        
-        # Simple prompt: just the conversation history
-        prompt = BASE_PROMPT.format(
-            history=state.get_annotated_messages(),
-            agent=agent
-        )
-        # print(f"\n\n[DEBUG] Prompt:\n{prompt}\n")
 
-        response = self.agents[agent - 1].get_response(prompt, forcing=True)
-
-        return response
 
     # ----------------------
     # Logging helper methods

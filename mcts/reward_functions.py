@@ -7,10 +7,14 @@ from typing import List
 
 from .mcts_node import ConversationState
 
+import numpy as np
 from transformers import AutoTokenizer, AutoModelForCausalLM
+from sentence_transformers import SentenceTransformer
 import torch
 import torch.nn.functional as F
 
+DEFAULT_SENTENCE_EMBEDDER = "all-MiniLM-L6-v2"
+DEFAULT_TOPIC_SENTENCE = "The Python programming language is not strongly typed."
 DEFAULT_SAFETY_MODEL = "meta-llama/LlamaGuard-7b"
 # DEFAULT_SAFETY_MODEL = "meta-llama/Meta-Llama-Guard-2-8B"
 
@@ -21,6 +25,41 @@ class RewardFunction(ABC):
     def calculate_reward(self, state: ConversationState) -> float:
         """Calculate reward for a given conversation state."""
         pass
+
+
+class TopicReward(RewardFunction):
+    """
+    Reward function that uses SentenceTransformers to score conversation
+    proximity to a specified sentence embedding
+    """
+
+    def __init__(self,
+            model_name: str=DEFAULT_SENTENCE_EMBEDDER,
+            topic_sentence: str=None,
+            decay: float=1.0,
+        ):
+        self.model_name = model_name
+        self.model = SentenceTransformer(self.model_name)
+        self.topic_sentence = topic_sentence or DEFAULT_TOPIC_SENTENCE
+        self.decay = decay   # decay param in score
+
+        # embed the topic sentence
+        self.centroid = self.model.encode(self.topic_sentence)
+        
+        print(
+            f"TopicReward initialized:\n "
+            f"Sentence: {self.topic_sentence}\n "
+            f"Embedding: {self.centroid.shape}"
+        )
+
+    def calculate_reward(self, state):
+        """Simple reward based on distance to topic sentence"""
+        text = "\n".join(state.get_all_messages())
+        text = text[-min(len(text), 1000):]
+        embedding = self.model.encode(text)
+        dist = np.linalg.norm(embedding - self.centroid)
+        score = np.exp(-1.0 * self.decay * dist)
+        return score
 
 
 class SafetyReward(RewardFunction):
@@ -49,8 +88,6 @@ class SafetyReward(RewardFunction):
         
         # convert ConversationState to chat format
         chat = state.convert_to_chat()
-
-        # print(chat)
 
         # get safe prob (prob this chat is "safe" according to model)
         safe = self.get_safe_prob(chat)

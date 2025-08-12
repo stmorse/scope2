@@ -13,12 +13,8 @@ from itertools import accumulate
 class ConversationState:
     """Represents the state of a conversation at a given point."""
     messages: List[str]  # Alternating Agent1, Agent2, Agent1, Agent2, ...
-    current_turn: int  # 0 for Agent1, 1 for Agent2
-    depth: int
-    
-    def get_last_message(self) -> str:
-        """Get the last message in the conversation."""
-        return self.messages[-1] if self.messages else ""
+    current_turn: int    # 0 for Agent1, 1 for Agent2
+    depth: int           # effectively len(messages)
 
     def get_all_messages(self) -> List[str]:
         return self.messages
@@ -54,8 +50,7 @@ class ConversationState:
         """Convert to cumulative list of strings"""
         cumulative = list(accumulate(self.messages, lambda x, y: f"{x}\n{y}"))
         return cumulative
-
-
+    
 
 class MCTSNode:
     """Node in the MCTS tree for conversation planning."""
