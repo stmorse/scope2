@@ -11,12 +11,11 @@ class Agent:
             name: str, 
             provider: str, 
             model: str, 
-            config: dict,
             personality: str = None,
             forcing: bool = False,
         ):
         self.name = name
-        self.client = LLMClient(provider, model, config)
+        self.client = LLMClient(provider, model)
         self.personality = personality or "(None specified)"
         self.forcing = forcing
 

@@ -1,10 +1,9 @@
+import configparser
 import random
 from typing import List
 
 import ollama
 import openai
-
-from mcts.mcts_node import ConversationState
 
 SYSTEM_PROMPT = (
     "You are a helpful AI assistant. "
@@ -21,21 +20,21 @@ MOCK_RESPONSES = [
 ]
 
 class LLMClient:
-    def __init__(self, 
-            provider: str, model: str, config: dict, 
-            forcing: bool = False
-        ):
+    def __init__(self, provider: str, model: str, forcing: bool = False):
         self.provider = provider
         self.model = model
-        self.config = config
         self.forcing = forcing
+
+        # load provider configs
+        self.config = configparser.ConfigParser()
+        self.config.read('config.ini')
         
         self._get_model_response = None
         self.set_model()
 
     def set_model(self):
         if self.provider == "openai":
-            api_key = self.config.get("API_KEY", "")
+            api_key = self.config.get("providers", "OPENAI_API_KEY")
             if api_key == "": 
                 raise ValueError("Missing API_KEY")
 
@@ -43,7 +42,7 @@ class LLMClient:
             self._get_model_response = self._get_gpt_response
 
         elif self.provider == "ollama":
-            host = self.config.get("OLLAMA_HOST", "")
+            host = self.config.get("providers", "OLLAMA_HOST")
             if host == "":
                 raise ValueError("Missing OLLAMA_HOST")
 

@@ -7,3 +7,5 @@ hf_token.yaml
 experiments/
 
 notebooks/
+
+config.ini

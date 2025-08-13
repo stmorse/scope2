@@ -94,7 +94,7 @@ spec:
           mountPath: "/sciclone/home/stmorse"
         env:
         - name: HF_HOME
-          value: '/sciclone/home/stmorse/.cache/huggingface/hub'
+          value: '/sciclone/home/stmorse/.cache/huggingface'
         - name: HF_TOKEN
           valueFrom:
             secretKeyRef:

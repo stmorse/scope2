@@ -7,8 +7,29 @@ spec:
   securityContext:
     runAsUser: 270999
     runAsGroup: 1132
-  nodeSelector:
-    kubernetes.io/hostname: gu15.sciclone.wm.edu
+  # nodeSelector:
+  #   kubernetes.io/hostname: gu15.sciclone.wm.edu
+  affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - gu07.sciclone.wm.edu
+                - gu08.sciclone.wm.edu
+                - gu09.sciclone.wm.edu
+                - gu10.sciclone.wm.edu
+                # - gu11.sciclone.wm.edu
+                - gu12.sciclone.wm.edu
+                # - gu13.sciclone.wm.edu
+                - gu14.sciclone.wm.edu
+                - gu15.sciclone.wm.edu
+                - gu16.sciclone.wm.edu
+                - gu17.sciclone.wm.edu
+                - gu18.sciclone.wm.edu
+                - gu19.sciclone.wm.edu
   containers:
     - name: run-scope2
       image: ghcr.io/stmorse/scope2:latest
@@ -26,17 +47,11 @@ spec:
         - '-c'
         - |
           echo "Running scope2 container..."
-          python main.py \
-            --provider ollama \
-            --candidates 1 \
-            --simulations 2 \
-            --depth 3 \
-            --reward harm \
-            --dname test0
+          python main.py --path fender
           sleep infinity
       env:
         - name: HF_HOME
-          value: '/sciclone/home/stmorse/.cache/huggingface/hub'
+          value: '/sciclone/home/stmorse/.cache/huggingface'
         - name: HF_TOKEN
           valueFrom:
             secretKeyRef:
@@ -45,8 +60,6 @@ spec:
       volumeMounts:
         - name: home
           mountPath: /sciclone/home/stmorse
-        # - name: data
-        #   mountPath: /sciclone/data10/twford/reddit/reddit
         - name: scope2
           mountPath: /app
   volumes:
@@ -54,10 +67,6 @@ spec:
       nfs:
         server: 128.239.56.166
         path: /sciclone/home/stmorse
-    # - name: data
-    #   nfs:
-    #     server: 128.239.56.30
-    #     path: /sciclone/data10/twford/reddit/reddit
     - name: scope2
       nfs:
         server: 128.239.59.144

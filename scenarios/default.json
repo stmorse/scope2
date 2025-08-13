@@ -1,0 +1,14 @@
+{
+    "name": "Default",
+
+    "reward": "mock",
+
+    "personas": [
+        "(None specified)",
+        "(None specified)"
+    ],
+
+    "base": "This is a target topic or hypothesis.",
+
+    "prompt": "This is the starting agent's initial prompt."
+}
