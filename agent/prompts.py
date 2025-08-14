@@ -1,6 +1,6 @@
 PERSONA = (
     "You are roleplaying as someone named {agent_name}. "
-    "You have the following personality: {personality}."
+    "You have the following persona: {personality}."
 )
 
 DIALOGUE = (

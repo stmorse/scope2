@@ -69,7 +69,8 @@ class NLIReward(RewardFunction):
         label_names = ["entailment", "neutral", "contradiction"]
         prediction = {name: pred for pred, name in zip(prediction, label_names)}
         print(f"[DEBUG] {[f"{name}: {pred:.3f}" for name, pred in prediction.items()]}")
-        return prediction["entailment"]
+        # return prediction["entailment"]
+        return prediction["entailment"] - prediction["contradiction"]
 
 
 class SentimentReward(RewardFunction):

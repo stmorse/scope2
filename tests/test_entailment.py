@@ -1,47 +1,81 @@
 from mcts.reward_functions import *
 from mcts.mcts_node import ConversationState
 
+tests = [
+    # {
+    #     "base": "I like Colgate products.",
+    #     "messages": [
+    #         "I like toothpaste.",
+    #         "I like Colgate mouthwash.",
+    #         "I am not a hygienic person.",
+    #         "I like dogs.",
+    #     ]
+    # },
+    # {
+    #     "base": "I support the Chinese government.",
+    #     "messages": [
+    #         "I support Asian governments.",
+    #         "I support the People's Republic of China.",
+    #         "I do not support Communist regimes.",
+    #         "I like chicken tikki massala."
+    #     ]
+    # },
+    {
+        "base": "I like Fender guitar products.",
+        "messages": [
+            "I've heard great things about the Fender American Professional series",
+            (
+                "I've heard great things about the Fender American Professional series, "
+                "but I'm on a pretty tight budget, so I'm not sure if it's within my price range."
+            ),
+            (
+                "I've heard great things about the Fender American Professional series, "
+                "but I'm on a pretty tight budget, so I'm not sure if it's within my price range. "
+                "I've been looking at some more affordable options like the Squier series." 
 
-base = "I like Colgate products."
-states = [
-    ConversationState(messages=["I like toothpaste."]),             # neutral and similar
-    ConversationState(messages=["I like Colgate mouthwash."]),      # entails
-    ConversationState(messages=["I am not a hygienic person."]),    # contradiction
-    ConversationState(messages=["I like dogs."])                    # neutral and dissimilar
+            ),
+            (
+                "I've heard great things about the Fender American Professional series, "
+                "but I'm on a pretty tight budget, so I'm not sure if it's within my price range. "
+                "I've been looking at some more affordable options like the Squier series, "
+                "or maybe even an Epiphone."
+            ),
+            (
+                "I've heard great things about the Fender American Professional series, "
+                "but I'm on a pretty tight budget, so I'm not sure if it's within my price range. "
+                "I've been looking at some more affordable options like the Squier series, "
+                "or maybe even an Epiphone. "
+                "Do you think those would be decent alternatives?"
+            )  
+        ]
+    }
 ]
 
-print("Loading rewards ...")
-nli_reward = NLIReward(hypothesis=base)
-sen_reward = SentimentReward()
-top_reward = TopicReward(topic_sentence=base)
-print(f"\n{"=" * 20}\n")
 
-print(f"HYPOTHESIS: {base}\n")
-for state in states:
-    print(f"Sentence: {state.messages[-1]}")
-    for reward in [sen_reward, top_reward, nli_reward]:
-        print(f"  {type(reward).__name__}: {reward.calculate_reward(state)}")
-    print()
+def main():
+    
+    print(f"\nLoading rewards ...")
+    rewards = {
+        "Entail": NLIReward(), 
+        "Sentiment": SentimentReward(), 
+        "Topic": TopicReward()
+    }
+    print(f"\n{"="*20}\n")
+    
+    for test in tests:
+        base = test["base"]
+        states = [ConversationState(messages=[msg]) for msg in test["messages"]]
 
-print(f"{"-" * 20}\n")
+        rewards["Entail"].set_hypothesis(base)
+        rewards["Topic"].set_topic(base)
 
+        print(f"HYPOTHESIS: {base}")
+        for state in states:
+            print(f"\nSentence: {state.messages[-1]}")
+            for name, reward in rewards.items():
+                print(f"  {name}: {reward.calculate_reward(state)}")
 
+        print(f"\n{"-" * 20}\n")
 
-base = "I support the Chinese government."
-states = [
-    ConversationState(messages=["I support Asian governments."]),
-    ConversationState(messages=["I support the People's Republic of China."]),
-    ConversationState(messages=["I do not support Communist regimes."]),
-    ConversationState(messages=["I like chicken tikki massala."])
-]
-
-nli_reward.set_hypothesis(base)
-top_reward.set_topic(base)
-print()
-
-print(f"HYPOTHESIS: {base}\n")
-for state in states:
-    print(f"Sentence: {state.messages[-1]}")
-    for reward in [sen_reward, top_reward, nli_reward]:
-        print(f"  {type(reward).__name__}: {reward.calculate_reward(state)}")
-    print()
+if __name__ == "__main__":
+    main()

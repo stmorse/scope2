@@ -47,7 +47,7 @@ spec:
         - '-c'
         - |
           echo "Running scope2 container..."
-          python main.py --path fender
+          python main.py --path russia
           sleep infinity
       env:
         - name: HF_HOME
