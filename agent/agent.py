@@ -15,9 +15,8 @@ class Agent:
             forcing: bool = False,
         ):
         self.name = name
-        self.client = LLMClient(provider, model)
+        self.client = LLMClient(provider, model, forcing)
         self.personality = personality or "(None specified)"
-        self.forcing = forcing
 
     def get_response(self, state: ConversationState) -> str:
         """Given a conversation state, generate response using agent's client"""
