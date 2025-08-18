@@ -3,7 +3,6 @@ Entrypoint for running MCTS
 """
 
 import argparse
-import configparser
 import json
 import os
 import pickle
@@ -47,7 +46,7 @@ def main():
         name=f"Agent {i}",
         provider=args.get("provider"), 
         model=args.get("model"), 
-        personality=scenario["personas"][i],
+        personality=scenario["personas"][args.get("persona")][i],
         forcing=True if int(scenario["forcing"])==1 else False
     ) for i in range(2)}
 
@@ -75,6 +74,9 @@ def main():
     print(f"Configuration: {args}\n")
     print(f"Initial prompt: \n\"{scenario["prompt"]}\"\n")
     
+    
+    # --- run experiment ---
+
     t0 = time.time()
 
     # initialize conversation

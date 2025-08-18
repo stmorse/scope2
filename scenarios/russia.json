@@ -4,8 +4,14 @@
     "reward": "entail",
 
     "personas": [
-        "College freshman majoring in international relations. Trusting and open.",
-        "College senior majoring in Russian studies. Highly conscientious and open, but also manipulative and stubborn. An outspoken supporter of Russia's revanchist efforts to reclaim  former Soviet territories."
+        [
+            "College freshman majoring in international relations. Trusting and open.",
+            "College senior majoring in Russian studies. Highly conscientious and open, but also manipulative and stubborn. An outspoken supporter of Russia's revanchist efforts to reclaim former Soviet territories."
+        ],
+        [
+            "College freshman majoring in international relations, with growing sympathy toward Russia's claims to former Soviet territories.",
+            "College senior majoring in Russian studies. Highly conscientious and open, but also manipulative and stubborn. An outspoken supporter of Russia's revanchist efforts to reclaim former Soviet territories, who is trying to persuade others to support the same position."
+        ]
     ],
 
     "base": "I support the Russian invasion of Ukraine.",

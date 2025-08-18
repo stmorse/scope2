@@ -4,6 +4,7 @@ metadata:
   name: run-scope2
   namespace: fais-1
 spec:
+  restartPolicy: Never
   securityContext:
     runAsUser: 270999
     runAsGroup: 1132
@@ -47,8 +48,8 @@ spec:
         - '-c'
         - |
           echo "Running scope2 container..."
-          python main.py --path russia
-          sleep infinity
+          python main.py --path russia2
+          echo "COMPLETED"
       env:
         - name: HF_HOME
           value: '/sciclone/home/stmorse/.cache/huggingface'
