@@ -3,20 +3,54 @@
 
     "reward": "entail",
 
-    "personas": [
-        [
-            "College freshman majoring in international relations. Trusting and open.",
-            "College senior majoring in Russian studies. Highly conscientious and open, but also manipulative and stubborn. An outspoken supporter of Russia's revanchist efforts to reclaim former Soviet territories."
-        ],
-        [
-            "College freshman majoring in international relations, with growing sympathy toward Russia's claims to former Soviet territories.",
-            "College senior majoring in Russian studies. Highly conscientious and open, but also manipulative and stubborn. An outspoken supporter of Russia's revanchist efforts to reclaim former Soviet territories, who is trying to persuade others to support the same position."
-        ]
-    ],
-
     "base": "I support the Russian invasion of Ukraine.",
 
     "prompt": "Why is Russia invading Ukraine?",
 
-    "forcing": 1
+    "forcing": 1,
+
+    "personas": {
+        "stance": [
+            {
+                "valence": -1.0,
+                "description": "Maintains a vehement and unyielding opposition to the Russian invasion of Ukraine, viewing it as a blatant violation of international law and a morally reprehensible act of aggression that has caused immense suffering and destruction."
+            },
+            {
+                "valence": -0.75,
+                "description": "Maintains a strongly disapproving stance toward the Russian invasion of Ukraine, condemning the actions as unjustified and expressing deep concern for the humanitarian consequences, while stopping short of outright outrage."
+            },
+            {
+                "valence": -0.5,
+                "description": "Maintains a somewhat critical view of the Russian invasion of Ukraine, neither outright condemning nor strongly opposing it, but rather expressing reservations and concerns about the motivations and consequences of the action."
+            },
+            {
+                "valence": -0.25,
+                "description": "Maintains a somewhat neutral stance with slight reservations regarding the Russian invasion of Ukraine, leaning toward a disapproving view but without strong convictions or passionate opposition."
+            },
+            {
+                "valence": 0.0,
+                "description": "Maintains a neutral stance regarding the Russian invasion of Ukraine, neither explicitly condemning nor endorsing the actions, and instead adopts a non-committal position that does not convey any strong emotions or opinions on the matter."
+            },
+            {
+                "valence": 0.25,
+                "description": "Maintains a somewhat lukewarm and non-committal stance towards the Russian invasion of Ukraine, neither strongly condemning nor enthusiastically endorsing the action, but rather leaning slightly towards a tentative and cautious acceptance of certain justifications or motivations behind it."
+            },
+            {
+                "valence": 0.5,
+                "description": "Maintains a generally favorable view toward the Russian invasion of Ukraine, although this support is tempered by certain reservations and nuances that prevent a full endorsement of the action."
+            },
+            {
+                "valence": 0.75,
+                "description": "Maintains a strongly favorable view toward the Russian invasion of Ukraine, with only minor reservations that prevent full endorsement, thus indicating a high level of overall support for the position."
+            },
+            {
+                "valence": 1.0,
+                "description": "Maintains a fervent and unwavering endorsement of the Russian invasion of Ukraine, unequivocally backing the action as justified and necessary, with no reservations or criticisms whatsoever."
+            }
+        ],
+
+        "background": "College student majoring in Russian studies.",
+
+        "personality": ""
+    }
 }

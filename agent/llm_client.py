@@ -20,7 +20,9 @@ MOCK_RESPONSES = [
 ]
 
 class LLMClient:
-    def __init__(self, provider: str, model: str, forcing: bool = False):
+    def __init__(self, 
+            provider: str, model: str, forcing: bool = False
+    ):
         self.provider = provider
         self.model = model
         self.forcing = forcing
@@ -84,10 +86,11 @@ class LLMClient:
 
     def _get_ollama_response(self, messages: List[dict], **kwargs) -> str:
         response = self.client.chat(
-            model = self.model,
+            model=self.model,
             messages=messages,
-            **kwargs
+            options=kwargs
         )
+        # print(response)
         response = response["message"]["content"]
 
         return response

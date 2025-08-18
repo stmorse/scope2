@@ -15,10 +15,14 @@ class Agent:
             forcing: bool = False,
         ):
         self.name = name
-        self.client = LLMClient(provider, model, forcing)
+        self.client = LLMClient(
+            provider, 
+            model, 
+            forcing=forcing, 
+        )
         self.personality = personality or "(None specified)"
 
-    def get_response(self, state: ConversationState) -> str:
+    def get_response(self, state: ConversationState, **kwargs) -> str:
         """Given a conversation state, generate response using agent's client"""
         
         # NOTE: ConversationState is in dialogue framing, we now convert it
@@ -36,7 +40,8 @@ class Agent:
 
         response = self.client.get_response(
             prompt, 
-            system_message=persona
+            system_message=persona,
+            **kwargs
         )
 
         return response
