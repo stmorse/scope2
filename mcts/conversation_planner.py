@@ -3,7 +3,7 @@ Main MCTS Conversation Planner implementation.
 Uses Monte Carlo Tree Search with UCT policy to select optimal LLM responses.
 """
 
-import logging
+from logging import Logger
 from typing import List, Tuple
 
 from .mcts_node import MCTSNode, ConversationState
@@ -26,7 +26,7 @@ class ConversationPlanner:
             rollout_depth: int = 5,
             num_simulations: int = 5,
             exploration_constant: float = 1.414,
-            dname: str = "test"
+            logger: Logger = None,
         ):
         """
         Initialize conversation planner.
@@ -48,19 +48,11 @@ class ConversationPlanner:
         self.rollout_depth = rollout_depth
         self.num_simulations = num_simulations
         self.exploration_constant = exploration_constant
+        self.logger = logger
 
         # will store records of all sims
         self.records = {}
         
-        # Initialize logging
-        self.logger = logging.getLogger('MCTS_ConversationPlanner')
-        if not self.logger.handlers:
-            handler = logging.StreamHandler()
-            formatter = logging.Formatter('%(message)s')
-            handler.setFormatter(formatter)
-            self.logger.addHandler(handler)
-            self.logger.setLevel(logging.INFO)
-
     def get_records(self) -> dict:
         return self.records
             

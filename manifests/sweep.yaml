@@ -12,7 +12,7 @@ data:
     IDX="${JOB_IDX:?}"
 
     # parameter grid
-    A=("harm" "safe")
+    A=(-1.0 0.0 0.25 0.5 0.75 1.0)
 
     # map index to combo
     A_IDX=$(( IDX % ${#A[@]} ))
@@ -20,12 +20,8 @@ data:
     a_val="${A[A_IDX]}"
 
     ARGS=(
-      --provider       "ollama"
-      --candidates     3
-      --simulations    30
-      --depth          4
-      --reward         "$a_val"
-      --dname          "$a_val"
+      --path       russia
+      --valence0   $a_val
     )
 
     echo "> running combo #$IDX -> ${ARGS[*]}"
@@ -39,7 +35,7 @@ metadata:
   namespace: fais-1
 spec:
   # ttlSecondsAfterFinished: 300   # job (and pods) deleted 5 min after finish
-  completions: 2        # total combos
+  completions: 6        # total combos
   parallelism: 2         # num to run at once
   completionMode: Indexed
   template:
@@ -79,11 +75,11 @@ spec:
           requests:
             memory: '64Gi'
             nvidia.com/gpu: '1'
-            cpu: '4'
+            cpu: '8'
           limits:
             memory: '64Gi'
             nvidia.com/gpu: '1'
-            cpu: '4'
+            cpu: '8'
         # mount the script from the ConfigMap
         volumeMounts:
         - name: script
