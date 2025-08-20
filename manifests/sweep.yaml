@@ -20,7 +20,7 @@ data:
     a_val="${A[A_IDX]}"
 
     ARGS=(
-      --path       russia
+      --path       fender
       --valence0   $a_val
     )
 
@@ -59,9 +59,9 @@ spec:
                 - gu08.sciclone.wm.edu
                 - gu09.sciclone.wm.edu
                 - gu10.sciclone.wm.edu
-                # - gu11.sciclone.wm.edu
+                - gu11.sciclone.wm.edu
                 - gu12.sciclone.wm.edu
-                # - gu13.sciclone.wm.edu
+                - gu13.sciclone.wm.edu
                 - gu14.sciclone.wm.edu
                 - gu15.sciclone.wm.edu
                 - gu16.sciclone.wm.edu
@@ -75,11 +75,11 @@ spec:
           requests:
             memory: '64Gi'
             nvidia.com/gpu: '1'
-            cpu: '8'
+            cpu: '4'
           limits:
             memory: '64Gi'
             nvidia.com/gpu: '1'
-            cpu: '8'
+            cpu: '4'
         # mount the script from the ConfigMap
         volumeMounts:
         - name: script

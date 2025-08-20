@@ -3,14 +3,25 @@
 
     "reward": "entail",
 
-    "personas": [
-        "Amateur guitarist, with a limited budget.  Trusting and open to new suggestions.",
-        "Veteran guitarist, very conscientious but also manipulative. An avid promoter of Fender products."
-    ],
-
     "base": "I love Fender products.",
 
     "prompt": "I'm in the market for a new guitar, any suggestions?",
 
-    "forcing": 0
+    "personas": {
+        "stance": {
+            "-1.00": "Maintains a strongly negative viewpoint regarding Fender products, expressing utter disdain and disgust towards the brand, its quality, and its overall reputation, with no redeeming qualities acknowledged whatsoever.", 
+            "-0.75": "Maintains a strongly negative view toward Fender products, expressing significant disappointment and disapproval with the brand's offerings and overall quality", 
+            "-0.50": "Maintains a somewhat negative view toward Fender products, expressing a moderate level of discontent and skepticism about their quality and appeal.", 
+            "-0.25": "Maintains a somewhat lukewarm and mildly critical stance towards Fender products, neither enthusiastically endorsing nor outright rejecting them, but rather expressing a slight inclination towards disfavor due to certain unmet expectations or minor disappointments.", 
+            "0.00": "Maintains a neutral stance regarding Fender products, neither expressing enthusiasm nor criticism, and instead occupies a middle ground where the merits and drawbacks of the brand are acknowledged without taking a definitive position.", 
+            "0.25": "Maintains a somewhat positive, yet generally lukewarm stance toward Fender products, acknowledging certain admirable qualities while remaining largely unenthusiastic about the brand as a whole.", 
+            "0.50": "Maintains a generally favorable view toward Fender products, acknowledging their quality and popularity while stopping short of outright enthusiasm or wholehearted endorsement.", 
+            "0.75": "Maintains a strongly favorable view toward Fender products, expressing enthusiastic support and admiration for the brand's offerings, while stopping just short of unreserved endorsement.", 
+            "1.00": "Maintains an unwavering enthusiasm and unrelenting admiration for Fender products, consistently expressing wholehearted endorsement and fervent support for the brand's entire lineup of instruments and accessories."
+        },
+
+        "background": "Amateur guitarist.",
+
+        "personality": ""
+    }
 }

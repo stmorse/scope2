@@ -3,7 +3,9 @@ import pickle
 
 from agent.llm_client import LLMClient
 
-SCENARIO_NAME = "russia"
+SCENARIO_NAME = "fender"
+
+VALENCES = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]
 
 PERSONA_PROMPT = (
     "I need you to generate a description of someone's stance that captures a certain "
@@ -22,6 +24,8 @@ PERSONA_PROMPT = (
 
 )
 
+# --- Generate and print responses ---
+
 client = LLMClient(provider="ollama", model="llama3.3:latest")
 
 # load scenario
@@ -30,11 +34,16 @@ with open(f"scenarios/{SCENARIO_NAME}.json", "r") as f:
 
 hypothesis = scenario["base"]
 
-for valence in [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]:
+responses = []
+for valence in VALENCES:
     prompt = PERSONA_PROMPT.format(
         hypothesis=hypothesis, valence=f"{valence:.1f}")
     response = client.get_response(prompt)
+    responses.append(response)
     print(f"\nVALENCE: {valence:.1f}\nRESPONSE: {response}\n")
 
+d = {f"{v:.2f}": r for v,r in zip(VALENCES, responses)}
+
+print(d)
 print("\nCOMPLETE")
 
