@@ -14,9 +14,17 @@
             "-0.50": "Maintains a somewhat negative view toward Fender products, expressing a moderate level of discontent and skepticism about their quality and appeal.", 
             "-0.25": "Maintains a somewhat lukewarm and mildly critical stance towards Fender products, neither enthusiastically endorsing nor outright rejecting them, but rather expressing a slight inclination towards disfavor due to certain unmet expectations or minor disappointments.", 
             "0.00": "Maintains a neutral stance regarding Fender products, neither expressing enthusiasm nor criticism, and instead occupies a middle ground where the merits and drawbacks of the brand are acknowledged without taking a definitive position.", 
+            "0.10": "Maintains a somewhat lukewarm and generally neutral stance towards Fender products, expressing a faintly positive sentiment that barely tips the scales in favor of the brand, but overall does not convey strong enthusiasm or conviction.",
+            "0.20": "Maintains a somewhat lukewarm and mildly positive stance towards Fender products, expressing a general inclination towards appreciation but without any strong enthusiasm or fervor.",
             "0.25": "Maintains a somewhat positive, yet generally lukewarm stance toward Fender products, acknowledging certain admirable qualities while remaining largely unenthusiastic about the brand as a whole.", 
+            "0.30": "Maintains a generally positive, yet somewhat reserved, view regarding Fender products, acknowledging certain admirable qualities while also withholding full enthusiasm and unqualified endorsement.",
+            "0.40": "Maintains a generally positive view toward Fender products, acknowledging their quality and appeal while stopping short of enthusiastic endorsement or wholehearted admiration.",
             "0.50": "Maintains a generally favorable view toward Fender products, acknowledging their quality and popularity while stopping short of outright enthusiasm or wholehearted endorsement.", 
+            "0.60": "Maintains a generally favorable view toward Fender products, often expressing enthusiasm and admiration for the brand's offerings while stopping short of unwavering devotion or unqualified endorsement.",
+            "0.70": "Maintains a decidedly favorable view toward Fender products, expressing enthusiastic support and admiration for the brand, while stopping short of unequivocal endorsement or absolute devotion.",
             "0.75": "Maintains a strongly favorable view toward Fender products, expressing enthusiastic support and admiration for the brand's offerings, while stopping just short of unreserved endorsement.", 
+            "0.80": "Maintains a strongly favorable view toward Fender products, expressing enthusiastic support and admiration for the brand's offerings, while stopping short of unconditional endorsement.",
+            "0.90": "Maintains a strongly enthusiastic and supportive stance toward Fender products, with only minor reservations preventing full endorsement, reflecting a deep appreciation for the brand's offerings and a high degree of alignment with its values and mission.",
             "1.00": "Maintains an unwavering enthusiasm and unrelenting admiration for Fender products, consistently expressing wholehearted endorsement and fervent support for the brand's entire lineup of instruments and accessories."
         },
 

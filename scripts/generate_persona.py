@@ -3,9 +3,12 @@ import pickle
 
 from agent.llm_client import LLMClient
 
-SCENARIO_NAME = "fender"
+SCENARIO_NAME = "russia"
 
-VALENCES = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]
+# VALENCES = [-1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0]
+VALENCES = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+print(f"\nVALENCES: {VALENCES}\n")
 
 PERSONA_PROMPT = (
     "I need you to generate a description of someone's stance that captures a certain "

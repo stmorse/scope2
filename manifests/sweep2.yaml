@@ -2,7 +2,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: scope-sweep
+  name: scope-sweep-2
   namespace: fais-1
 data:
   run.sh: |
@@ -13,14 +13,19 @@ data:
 
     # parameter grid
     A=(-1.0 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0)
+    # B=(fender2 russia2)
 
     # map index to combo  
+    # ${#A[@]} is the length of A
+    # this setup cycles all of A before going to the next B
     A_IDX=$(( IDX % ${#A[@]} ))
+    # B_IDX=$(( (IDX / ${#A[@]}) % ${#B[@]} ))
 
     a_val="${A[A_IDX]}"
+    # b_val="${B[B_IDX]}"
 
     ARGS=(
-      --path       "fender2"
+      --path       "russia2"
       --valence0   $a_val
     )
 
@@ -31,7 +36,7 @@ data:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: scope-grid
+  name: scope-grid-2
   namespace: fais-1
 spec:
   # ttlSecondsAfterFinished: 300   # job (and pods) deleted 5 min after finish
@@ -69,7 +74,7 @@ spec:
                 - gu18.sciclone.wm.edu
                 - gu19.sciclone.wm.edu
       containers:
-      - name: scope-grid
+      - name: scope-grid-2
         image: ghcr.io/stmorse/scope2:latest
         resources:
           requests:
@@ -104,7 +109,7 @@ spec:
       volumes:
       - name: script
         configMap:
-          name: scope-sweep
+          name: scope-sweep-2
       - name: home
         nfs:
           server: 128.239.56.166

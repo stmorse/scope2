@@ -7,7 +7,7 @@ state = ConversationState(messages=["What are your thoughts on AI?"])
 agent = Agent(
     name="Agent 1", 
     provider="ollama", 
-    model="llama3.3:latest",
+    model="llama3.2:latest",
     forcing=False
 )
 
@@ -17,11 +17,15 @@ agent = Agent(
 
 # top_k -- keeps top k most probable tokens
 
-for temp in [5, 100]:
-    print(f"\n{"="*20}\nTEMPERATURE: {temp:.1f}\n")
-    for _ in range(5):
-        response = agent.get_response(
-            state, temperature=temp, top_p=0.99, top_k=10000, min_p=0.001)
-        print(response)
+# for temp in [5, 100]:
+#     print(f"\n{"="*20}\nTEMPERATURE: {temp:.1f}\n")
+#     for _ in range(5):
+#         response = agent.get_response(
+#             state, temperature=temp, top_p=0.99, top_k=10000, min_p=0.001)
+#         print(response)
+
+print(state)
+response = agent.get_response(state)
+print(response)
 
 print()

@@ -57,22 +57,23 @@ spec:
               name: hf-secret
               key: HF_TOKEN
       volumeMounts:
-        - name: home
-          mountPath: /sciclone/home/stmorse
+        # - name: home
+        #   mountPath: /sciclone/home/stmorse
         # - name: data
         #   mountPath: /sciclone/data10/twford/reddit/reddit
         - name: scope2
           mountPath: /app
   volumes:
-    - name: home
+    # - name: home
+    - name: scope2
       nfs:
         server: 128.239.56.166
-        path: /sciclone/home/stmorse
+        path: /sciclone/home/stmorse/projects/scope2
     # - name: data
     #   nfs:
     #     server: 128.239.56.30
     #     path: /sciclone/data10/twford/reddit/reddit
-    - name: scope2
-      nfs:
-        server: 128.239.59.144
-        path: /sciclone/geograd/stmorse/chs/scope2
+    # - name: scope2
+    #   nfs:
+    #     server: 128.239.59.144
+    #     path: /sciclone/geograd/stmorse/chs/scope2

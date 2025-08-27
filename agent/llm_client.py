@@ -36,17 +36,17 @@ class LLMClient:
 
     def set_model(self):
         if self.provider == "openai":
-            api_key = self.config.get("providers", "OPENAI_API_KEY")
+            api_key = self.config.get(self.provider, "API_KEY")
             if api_key == "": 
                 raise ValueError("Missing API_KEY")
 
             self.client = openai.OpenAI(api_key=api_key)
             self._get_model_response = self._get_gpt_response
 
-        elif self.provider == "ollama":
-            host = self.config.get("providers", "OLLAMA_HOST")
+        elif self.provider.startswith("ollama"):
+            host = self.config.get(self.provider, "HOST")
             if host == "":
-                raise ValueError("Missing OLLAMA_HOST")
+                raise ValueError("Missing HOST (ollama)")
 
             self.client = ollama.Client(host=host)
             self._get_model_response = self._get_ollama_response
