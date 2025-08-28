@@ -4,8 +4,8 @@ __pycache__/
 
 hf_token.yaml
 
-experiments/
+y-temp/
 
-notebooks/
+z-archive/
 
 config.ini

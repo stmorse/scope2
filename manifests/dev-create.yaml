@@ -32,17 +32,18 @@ spec:
                 - gu19.sciclone.wm.edu
   containers:
     - name: dev-scope
-      image: ghcr.io/stmorse/scope2:latest
+      #image: ghcr.io/stmorse/scope2:latest
+      image: busybox:latest
       resources:
         requests:
           memory: '64Gi'
-          nvidia.com/gpu: '1'
+          #nvidia.com/gpu: '1'
           cpu: '4'
         limits:
           memory: '64Gi'
-          nvidia.com/gpu: '1'
+          #nvidia.com/gpu: '1'
           cpu: '4'
-      command: ['/bin/bash']
+      command: ['/bin/sh']
       args:
         - '-c'
         - |
@@ -63,6 +64,8 @@ spec:
         #   mountPath: /sciclone/data10/twford/reddit/reddit
         - name: scope2
           mountPath: /app
+        - name: proj-ds
+          mountPath: /sciclone/proj-ds/geograd/stmorse
   volumes:
     # - name: home
     - name: scope2
@@ -73,7 +76,9 @@ spec:
     #   nfs:
     #     server: 128.239.56.30
     #     path: /sciclone/data10/twford/reddit/reddit
-    # - name: scope2
-    #   nfs:
-    #     server: 128.239.59.144
-    #     path: /sciclone/geograd/stmorse/chs/scope2
+    - name: proj-ds
+      nfs:
+        server: 192.168.59.144
+        #server: 128.239.59.144
+        #server: proj-ds-ib.sciclone.wm.edu
+        path: /sciclone/proj-ds/geograd/stmorse
