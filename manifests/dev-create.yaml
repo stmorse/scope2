@@ -32,22 +32,22 @@ spec:
                 - gu19.sciclone.wm.edu
   containers:
     - name: dev-scope
-      #image: ghcr.io/stmorse/scope2:latest
-      image: busybox:latest
+      image: ghcr.io/stmorse/scope2:latest
+      # image: busybox:latest
       resources:
         requests:
           memory: '64Gi'
-          #nvidia.com/gpu: '1'
+          nvidia.com/gpu: '1'
           cpu: '4'
         limits:
           memory: '64Gi'
-          #nvidia.com/gpu: '1'
+          nvidia.com/gpu: '1'
           cpu: '4'
-      command: ['/bin/sh']
+      command: ['/bin/bash']
       args:
         - '-c'
         - |
-          echo "Running dev scope2 container..."   # pod is for dev'ing scripts, run indef
+          echo "Running dev container..."
           sleep infinity
       env:
         - name: HF_HOME
@@ -58,17 +58,20 @@ spec:
               name: hf-secret
               key: HF_TOKEN
       volumeMounts:
-        # - name: home
-        #   mountPath: /sciclone/home/stmorse
+        - name: home
+          mountPath: /sciclone/home/stmorse
         # - name: data
         #   mountPath: /sciclone/data10/twford/reddit/reddit
-        - name: scope2
+        - name: project
           mountPath: /app
-        - name: proj-ds
+        - name: results
           mountPath: /sciclone/proj-ds/geograd/stmorse
   volumes:
-    # - name: home
-    - name: scope2
+    - name: home
+      nfs:
+        server: 128.239.56.166
+        path: /sciclone/home/stmorse
+    - name: project
       nfs:
         server: 128.239.56.166
         path: /sciclone/home/stmorse/projects/scope2
@@ -76,9 +79,9 @@ spec:
     #   nfs:
     #     server: 128.239.56.30
     #     path: /sciclone/data10/twford/reddit/reddit
-    - name: proj-ds
+    - name: results
       nfs:
-        server: 192.168.59.144
-        #server: 128.239.59.144
-        #server: proj-ds-ib.sciclone.wm.edu
+        server: 192.168.59.144   # infiniband
+        #server: 128.239.59.144   # ethernet
+        #server: proj-ds-ib.sciclone.wm.edu   # <-- doesn't work (yet)
         path: /sciclone/proj-ds/geograd/stmorse

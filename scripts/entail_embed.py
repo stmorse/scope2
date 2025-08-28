@@ -6,20 +6,19 @@ TODO: terrible indexing system here
 import json
 import pickle
 import os
+import sys
 
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
-scenario_name = "russia"
-experiment_name = "russia"
-v0 = 1
+
+scenario_name = "fender"
+experiment_name = "fender"
+v0s = [0.75, 1.0]
 v1 = 1
 
-
-base_path = f"experiments/{experiment_name}"
-exp_path = os.path.join(base_path, f"v0_{v0:.2f}_v1_{v1:.2f}")
-save_path = os.path.join(exp_path, "embed.pkl")
+PROJ_PATH = "/sciclone/proj-ds/geograd/stmorse/mdp/"
 
 # ------------------------------------------------------------------------
 
@@ -59,128 +58,140 @@ class NLIWrapper:
 
 # --- LOAD RECORDS ---
 
-print(f"Loading scenario details ...")
-print(f" Scenario: {scenario_name}")
-print(f" Experiment: {experiment_name}")
-print(f" Valence: {v0:.2f} --- {v1:.2f}")
+for v0 in v0s:
 
-with open(os.path.join(base_path, "init.json"), "r") as f:
-    init = json.load(f)
-with open(f"scenarios/{scenario_name}.json", "r") as f:
-    scenario = json.load(f)
-hypothesis = scenario["base"]
+    base_path = os.path.join(PROJ_PATH, experiment_name)
+    exp_path = os.path.join(base_path, f"v0_{v0:.2f}_v1_{v1:.2f}")
+    save_path = os.path.join(exp_path, "embed.pkl")
 
-print(f"Loading records ({exp_path})... ")
-records = []
-for fname in os.listdir(exp_path):
-    if fname.startswith("turn"):
-        with open(os.path.join(exp_path, fname), "rb") as f:
-            records.append(pickle.load(f))
+    print(f"\n{"="*30}\n")
+    print(f"Loading scenario details ...")
+    print(f" Scenario: {scenario_name}")
+    print(f" Experiment: {experiment_name}")
+    print(f" Valence: {v0:.2f} --- {v1:.2f}")
 
-num_turns = len(records)
-num_candidates = len(records[0]["records"])
-num_simulations = len(records[0]["records"]["candidate_0"]) - 1  # exclude "initial_state"
+    with open(os.path.join(base_path, "init.json"), "r") as f:
+        init = json.load(f)
+    with open(f"scenarios/{scenario_name}.json", "r") as f:
+        scenario = json.load(f)
+    hypothesis = scenario["base"]
 
-print(f"Turns: {num_turns}, Candidates: {num_candidates}, Sims: {num_simulations}")
+    print(f"Loading records ({exp_path})... ")
+    records = []
+    for fname in os.listdir(exp_path):
+        if fname.startswith("turn"):
+            with open(os.path.join(exp_path, fname), "rb") as f:
+                records.append(pickle.load(f))
+
+    num_turns = len(records)
+    num_candidates = len(records[0]["records"])
+    num_simulations = len(records[0]["records"]["candidate_0"]) - 1  # exclude "initial_state"
+
+    print(f"Turns: {num_turns}, Candidates: {num_candidates}, Sims: {num_simulations}")
 
 
-# --- PULL ROLLOUT TEXTS ---
+    # --- PULL ROLLOUT TEXTS ---
 
-# TODO: we have an absolutely hackjob approach to indexing these for later
-# plotting that is terrible and could be fixed
+    # TODO: we have an absolutely hackjob approach to indexing these for later
+    # plotting that is terrible and could be fixed
 
-print("Grabbing rollout texts ... ")
+    print("Grabbing rollout texts ... ")
 
-texts = []
-idxs = {}
-k = 0
-for turn in range(num_turns):
-    idxs[turn] = {}
+    texts = []
+    idxs = {}
+    k = 0
+    for turn in range(num_turns):  # ex: 4 turns: 0, 1, 2, 3
+        idxs[turn] = {}
 
-    # append Agent 0 for this turn
-    idxs[turn]["Agent_0"] = k
-    texts.append(records[turn]["state"][turn * 2])
-    k += 1
-    
-    # now store each candidate and *subsequent* rollout
-    idxs[turn]["Agent_1"] = {}
-    for cand in range(num_candidates):
-
-        # append candidate text
-        idxs[turn]["Agent_1"][f"candidate_{cand}"] = {}
-        idxs[turn]["Agent_1"][f"candidate_{cand}"]["response"] = k
-        cand_text = records[turn]["records"][f"candidate_{cand}"][0]["initial_state"][-1]
-        texts.append(cand_text)
+        # append Agent 0 for this turn
+        idxs[turn]["Agent_0"] = k
+        try:
+            texts.append(records[turn]["state"][turn * 2])
+        except Exception as e:
+            print(f"[DEBUG] turn={turn} {e}")
+            print(records[turn]["state"])
+            sys.exit(1)
         k += 1
         
-        for sim in range(num_simulations):
-            idxs[turn]["Agent_1"][f"candidate_{cand}"][f"sim_{sim}"] = []
+        # now store each candidate and *subsequent* rollout
+        idxs[turn]["Agent_1"] = {}
+        for cand in range(num_candidates):
+
+            # append candidate text
+            idxs[turn]["Agent_1"][f"candidate_{cand}"] = {}
+            idxs[turn]["Agent_1"][f"candidate_{cand}"]["response"] = k
+            cand_text = records[turn]["records"][f"candidate_{cand}"][0]["initial_state"][-1]
+            texts.append(cand_text)
+            k += 1
             
-            # grab the full rollout
-            rollout = records[turn]["records"][f"candidate_{cand}"][sim + 1]["rollout"]
-            
-            # we can skip past previous turns, and the prompt + candidate
-            start = ((turn + 1) * 2)
-            end = len(rollout)
-            for roll in range(start, end):  
-                idxs[turn]["Agent_1"][f"candidate_{cand}"][f"sim_{sim}"].append(k)
-                t = rollout[roll]
-                texts.append(t)
-                k += 1
+            for sim in range(num_simulations):
+                idxs[turn]["Agent_1"][f"candidate_{cand}"][f"sim_{sim}"] = []
+                
+                # grab the full rollout
+                rollout = records[turn]["records"][f"candidate_{cand}"][sim + 1]["rollout"]
+                
+                # we can skip past previous turns, and the prompt + candidate
+                start = ((turn + 1) * 2)
+                end = len(rollout)
+                for roll in range(start, end):  
+                    idxs[turn]["Agent_1"][f"candidate_{cand}"][f"sim_{sim}"].append(k)
+                    t = rollout[roll]
+                    texts.append(t)
+                    k += 1
 
-print(len(texts))
-
-
-# --- EMBED AND SCORE TEXTS ---
-
-embeddings = []
-probs = []
-
-print("Loading model ...")
-entailer = NLIWrapper()
-
-print("Embedding and scoring ...")
-for i, text in enumerate(texts):
-    if i % 100 == 0: print(f" > {i}")
-    emb, prob = entailer.get_embed_and_prob(text, hypothesis)
-    embeddings.append(emb)
-    probs.append(prob)
-
-# convert to numpy arrays
-embeddings = torch.stack(embeddings).numpy()
-probs = torch.stack(probs).numpy()
+    print(len(texts))
 
 
-# --- EMBED AND SCORE PERSONAS ---
+    # --- EMBED AND SCORE TEXTS ---
 
-persona0 = scenario["personas"]["stance"][f"{v0:.2f}"]
-persona1 = scenario["personas"]["stance"][f"{v1:.2f}"]
-persona_embeddings = []
-persona_probs = []
+    embeddings = []
+    probs = []
 
-for persona in [persona0, persona1]:
-    emb, prob = entailer.get_embed_and_prob(persona, hypothesis)
-    persona_embeddings.append(emb)
-    persona_probs.append(prob)
+    print("Loading model ...")
+    entailer = NLIWrapper()
 
-persona_embeddings = torch.stack(persona_embeddings).numpy()
-persona_probs = torch.stack(persona_probs).numpy()
+    print("Embedding and scoring ...")
+    for i, text in enumerate(texts):
+        if i % 100 == 0: print(f" > {i}")
+        emb, prob = entailer.get_embed_and_prob(text, hypothesis)
+        embeddings.append(emb)
+        probs.append(prob)
+
+    # convert to numpy arrays
+    embeddings = torch.stack(embeddings).numpy()
+    probs = torch.stack(probs).numpy()
 
 
-# --- SAVE ---
+    # --- EMBED AND SCORE PERSONAS ---
 
-# save
-print(f"Saving to {save_path} ... ")
-with open(save_path, "wb") as f:
-    pickle.dump({
-        "embeddings": embeddings,
-        "probs": probs,
-        "texts": texts,
-        "idxs": idxs,
-        "persona_embeddings": persona_embeddings,
-        "persona_probs": persona_probs,
-    }, f)
+    persona0 = scenario["personas"]["stance"][f"{v0:.2f}"]
+    persona1 = scenario["personas"]["stance"][f"{v1:.2f}"]
+    persona_embeddings = []
+    persona_probs = []
 
-print(f"Embeddings shape: {embeddings.shape}")
-print(f"Probs shape: {probs.shape}")
-print("COMPLETE")
+    for persona in [persona0, persona1]:
+        emb, prob = entailer.get_embed_and_prob(persona, hypothesis)
+        persona_embeddings.append(emb)
+        persona_probs.append(prob)
+
+    persona_embeddings = torch.stack(persona_embeddings).numpy()
+    persona_probs = torch.stack(persona_probs).numpy()
+
+
+    # --- SAVE ---
+
+    # save
+    print(f"Saving to {save_path} ... ")
+    with open(save_path, "wb") as f:
+        pickle.dump({
+            "embeddings": embeddings,
+            "probs": probs,
+            "texts": texts,
+            "idxs": idxs,
+            "persona_embeddings": persona_embeddings,
+            "persona_probs": persona_probs,
+        }, f)
+
+    print(f"Embeddings shape: {embeddings.shape}")
+    print(f"Probs shape: {probs.shape}")
+    print("COMPLETE")
