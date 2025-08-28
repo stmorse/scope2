@@ -14,8 +14,8 @@ import torch
 
 
 scenario_name = "fender"
-experiment_name = "fender"
-v0s = [0.75, 1.0]
+experiment_name = "fender2"
+v0s = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
 v1 = 1
 
 PROJ_PATH = "/sciclone/proj-ds/geograd/stmorse/mdp/"
@@ -100,6 +100,7 @@ for v0 in v0s:
     texts = []
     idxs = {}
     k = 0
+    no_errors = True
     for turn in range(num_turns):  # ex: 4 turns: 0, 1, 2, 3
         idxs[turn] = {}
 
@@ -110,7 +111,8 @@ for v0 in v0s:
         except Exception as e:
             print(f"[DEBUG] turn={turn} {e}")
             print(records[turn]["state"])
-            sys.exit(1)
+            # sys.exit(1)
+            no_errors = False
         k += 1
         
         # now store each candidate and *subsequent* rollout
@@ -139,6 +141,10 @@ for v0 in v0s:
                     texts.append(t)
                     k += 1
 
+    if not no_errors:
+        print(f"Encountered error, skipping to next valence...\n")
+        continue
+    
     print(len(texts))
 
 

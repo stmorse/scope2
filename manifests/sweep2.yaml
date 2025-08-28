@@ -13,19 +13,15 @@ data:
 
     # parameter grid
     A=(-1.0 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0)
-    # B=(fender2 russia2)
 
     # map index to combo  
     # ${#A[@]} is the length of A
-    # this setup cycles all of A before going to the next B
     A_IDX=$(( IDX % ${#A[@]} ))
-    # B_IDX=$(( (IDX / ${#A[@]}) % ${#B[@]} ))
 
     a_val="${A[A_IDX]}"
-    # b_val="${B[B_IDX]}"
 
     ARGS=(
-      --path       "russia2"
+      --path       "fender0"
       --valence0   $a_val
     )
 
@@ -41,7 +37,7 @@ metadata:
 spec:
   # ttlSecondsAfterFinished: 300   # job (and pods) deleted 5 min after finish
   completions: 12        # total combos
-  parallelism: 4         # num to run at once
+  parallelism: 2         # num to run at once
   completionMode: Indexed
   template:
     spec:
@@ -89,10 +85,12 @@ spec:
         volumeMounts:
         - name: script
           mountPath: /mnt/script
-        - name: scope
+        - name: project
           mountPath: "/app"
         - name: home
           mountPath: "/sciclone/home/stmorse"
+        - name: results
+          mountPath: "/sciclone/proj-ds/geograd/stmorse"
         env:
         - name: HF_HOME
           value: '/sciclone/home/stmorse/.cache/huggingface'
@@ -109,17 +107,20 @@ spec:
       volumes:
       - name: script
         configMap:
-          name: scope-sweep-2
+          name: scope-sweep
       - name: home
         nfs:
           server: 128.239.56.166
           path: /sciclone/home/stmorse
-      - name: scope
+      - name: project
         nfs:
-          # server: 128.239.59.144
-          # path: /sciclone/geograd/stmorse/chs/scope2
           server: 128.239.56.166
           path: /sciclone/home/stmorse/projects/scope2
+      - name: results
+        nfs:
+          server: 192.168.59.144    #infiniband
+          # server: 128.239.59.144  #ethernet
+          path: /sciclone/proj-ds/geograd/stmorse
       imagePullSecrets:
       - name: ghcr-secret
       

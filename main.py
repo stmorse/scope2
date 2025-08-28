@@ -15,7 +15,7 @@ from mcts.mcts_node import ConversationState
 from mcts.reward_functions import *
 
 
-BASE_PATH = "experiments"
+BASE_PATH = "/sciclone/proj-ds/geograd/stmorse/mdp"
 
 def build_persona(scenario, valence):
     stance = scenario["personas"]["stance"][f"{valence:.2f}"].strip()
