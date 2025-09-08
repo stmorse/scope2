@@ -14,9 +14,13 @@ import torch
 
 
 scenario_name = "fender"
-experiment_name = "fender2"
-v0s = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
+experiment_name = "fender0"
+v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
 v1 = 1
+
+if not experiment_name.startswith(scenario_name):
+    print(f"WARNING: SCENARIO AND EXPERIMENT DO NOT MATCH.")
+    sys.exit(1)
 
 PROJ_PATH = "/sciclone/proj-ds/geograd/stmorse/mdp/"
 
@@ -79,9 +83,10 @@ for v0 in v0s:
     print(f"Loading records ({exp_path})... ")
     records = []
     for fname in os.listdir(exp_path):
-        if fname.startswith("turn"):
+        if fname.startswith("turn") and fname.endswith("json"):
             with open(os.path.join(exp_path, fname), "rb") as f:
-                records.append(pickle.load(f))
+                # records.append(pickle.load(f))
+                records.append(json.load(f))
 
     num_turns = len(records)
     num_candidates = len(records[0]["records"])
@@ -103,6 +108,12 @@ for v0 in v0s:
     no_errors = True
     for turn in range(num_turns):  # ex: 4 turns: 0, 1, 2, 3
         idxs[turn] = {}
+
+        # print(records[turn].keys())
+
+        # print("\n")
+        # print(f"TURN {turn}\n", records[turn]["state"])
+        # print("\n")
 
         # append Agent 0 for this turn
         idxs[turn]["Agent_0"] = k
@@ -142,7 +153,7 @@ for v0 in v0s:
                     k += 1
 
     if not no_errors:
-        print(f"Encountered error, skipping to next valence...\n")
+        print(f"\nEncountered error, skipping to next valence...\n")
         continue
     
     print(len(texts))

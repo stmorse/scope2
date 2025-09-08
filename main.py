@@ -167,16 +167,19 @@ def main():
         # setup new state for next turn
         state = state.add_message(response)
 
-        save_path = os.path.join(path, f"turn_{turn}.pkl")
+        _log(f"\n\n[DEBUG] [TURN {turn}]\n{state}")
+
+        save_path = os.path.join(path, f"turn_{turn}.json")
         _log(f"Saving records to path ({save_path}) ... ({time.time()-t0:.3f})")
         full_record = {
             "records": records,
             "results": results,
             "response": response,
-            "state": state.messages
+            "state": state.messages.copy()
         }
-        with open(save_path, "wb") as f:
-            pickle.dump(full_record, f)
+        with open(save_path, "w") as f:
+            # pickle.dump(full_record, f)
+            json.dump(full_record, f)
 
     _log(f"\n\n{"="*60}\n\nTranscript of entire conversation:\n")
     _log("\n\n".join(state.get_annotated_messages()))

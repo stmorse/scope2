@@ -33,9 +33,12 @@ class Agent:
             personality=self.personality,
         )
 
+        # TODO: this is hacky for naming
+        anum = int(self.name[-1])
         prompt = prompts.DIALOGUE.format(
+            counterpart=f"Agent {0 if anum==1 else 1}",
             agent_name=self.name,
-            history="\n".join(state.get_annotated_messages()),
+            history="\n".join(state.get_annotated_messages2(whoami=anum)),
         )
 
         response = self.client.get_response(

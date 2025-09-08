@@ -4,8 +4,7 @@ PERSONA = (
 )
 
 DIALOGUE = (
-    "You are having a conversation with another agent. "
-    "You are roleplaying as {agent_name}. "
+    "You are having a conversation with another agent, named {counterpart}. "
     "Here is the dialogue so far:"
     "\n\n{history}\n\n"
     "What is your response? Just give your answer, no formalities, "

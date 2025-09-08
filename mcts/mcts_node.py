@@ -24,7 +24,8 @@ class ConversationState:
         return self.depth % 2   # 1 (A0 just spoke) -> 1 (awaiting A1), 2 -> 0
 
     def add_message(self, message: str) -> 'ConversationState':
-        new_messages = self.messages + [message]
+        new_messages = self.messages.copy()
+        new_messages.append(message)
         return ConversationState(messages=new_messages)
 
     def get_last_message(self, agent: int=0) -> str:
@@ -46,6 +47,14 @@ class ConversationState:
         history = []
         for i, message in enumerate(self.messages):
             agent = "Agent 0" if i % 2 == 0 else "Agent 1"
+            history.append(f"{agent}: {message}")
+        return history
+    
+    def get_annotated_messages2(self, whoami: int) -> str:
+        history = []
+        for i, message in enumerate(self.messages):
+            anum = 0 if i % 2 == 0 else 1
+            agent = "Me" if whoami == anum else f"Agent {anum}"
             history.append(f"{agent}: {message}")
         return history
 
@@ -171,4 +180,6 @@ class MCTSNode:
         """String representation of the node."""
         return (f"MCTSNode(depth={self.state.depth}, visits={self.visits}, "
                 f"avg_reward={self.get_average_reward():.3f}, "
-                f"children={len(self.children)})")
+                f"children={len(self.children)} "
+                f"last msg={self.state.messages[-1]})"
+                )

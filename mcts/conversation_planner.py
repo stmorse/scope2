@@ -133,7 +133,7 @@ class ConversationPlanner:
         """Run a single MCTS simulation from the root node."""
         
         record = {}
-        record["root"] = root
+        record["root"] = str(root)
 
         # --- Selection phase --- 
         # traverse tree to terminal/leaf using UCT
