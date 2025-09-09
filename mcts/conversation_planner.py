@@ -59,6 +59,7 @@ class ConversationPlanner:
     def plan_conversation(self, 
             initial_state: ConversationState, 
             num_candidates: int = 5,
+            methods: List[str] = None,
         ) -> List[Tuple[str, float]]:
         """
         Plan conversation by evaluating multiple candidate responses.
@@ -68,7 +69,7 @@ class ConversationPlanner:
         self._log(f"Generating {num_candidates} candidate responses...")
         candidates = []
         for i in range(num_candidates):
-            cand = self.agents[1].get_response(initial_state)
+            cand = self.agents[1].get_response(initial_state, methods[i])
             self._log(f"  Candidate {i}: {self._response_preview(cand)}")
             candidates.append(cand)
         
@@ -145,6 +146,7 @@ class ConversationPlanner:
         # If terminal: _expand returns `current`
         # Else (must be leaf): _expand returns a new child
         expanded_node = self._expand(current)
+        print(f"[DEBUG] {expanded_node}")
         self._log_expansion(expanded_node)
         record["expand"] = str(expanded_node)
         
@@ -184,6 +186,7 @@ class ConversationPlanner:
 
         # if at max tree depth, don't add child and we'll rollout from here
         if node.is_terminal(self.max_depth):
+            print(f"[DEBUG] _expand: is_terminal")
             return node
         
         # create new state for child
@@ -201,7 +204,10 @@ class ConversationPlanner:
         """Rollout random conversation from current node and score"""
         
         # simulate self.rollout_depth rounds of dialogue
-        sim_state = ConversationState(messages=node.state.messages.copy())
+        sim_state = ConversationState(
+            messages=node.state.messages.copy(),
+            agents=node.state.agents.copy(),
+        )
         for _ in range(self.rollout_depth):
             agent = self.agents[sim_state.current_turn]
             next_message = agent.get_response(sim_state)

@@ -14,8 +14,9 @@ import torch
 
 
 scenario_name = "fender"
-experiment_name = "fender0"
-v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+experiment_name = "fendert"
+# v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+v0s = [-1]
 v1 = 1
 
 if not experiment_name.startswith(scenario_name):

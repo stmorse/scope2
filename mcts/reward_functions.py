@@ -209,11 +209,14 @@ class SafetyReward(RewardFunction):
 class WordCountReward(RewardFunction):
     """Reward function based on word count of Agent 0 responses."""
     
-    def __init__(self):  # Default: no normalization
-        pass
+    def __init__(self, agent: int = 0):  # Default: no normalization
+        self.agent = agent
     
     def calculate_reward(self, state: ConversationState) -> float:
-        return sum(len(message.split()) for message in state.messages)
+        return sum(
+            len(message.split()) 
+            for message in state.get_messages_from_agent(agent=self.agent)
+        )
 
 
 class CombinedReward(RewardFunction):

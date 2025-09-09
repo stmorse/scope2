@@ -13,6 +13,7 @@ from itertools import accumulate
 class ConversationState:
     """Represents the state of a conversation at a given point."""
     messages: List[str]   # Alternating Agent 0, Agent 1, ...
+    agents: List[str]
     
     @property
     def depth(self) -> int:
@@ -26,14 +27,14 @@ class ConversationState:
     def add_message(self, message: str) -> 'ConversationState':
         new_messages = self.messages.copy()
         new_messages.append(message)
-        return ConversationState(messages=new_messages)
+        return ConversationState(messages=new_messages, agents=self.agents)
 
     def get_last_message(self, agent: int=0) -> str:
         # agent=0 --> depth even, go back two, depth odd, get last
         # agent=1 --> depth even, get last, depth odd, go back two
         
         if self.depth < 2 and agent == 1:
-            raise ValueError(f"Agent {agent} hasn't spoken yet.")
+            raise ValueError(f"Agent {self.agents[agent]} hasn't spoken yet.")
         
         last_is_1 = (self.depth % 2 == 0)
         
@@ -41,26 +42,33 @@ class ConversationState:
             return self.messages[-2] if last_is_1 else self.messages[-1]
         else:
             return self.messages[-1] if last_is_1 else self.messages[-2]
+
+    def get_messages_from_agent(self, agent: int=0) -> List[str]:
+        msgs = []
+        for i, msg in enumerate(self.messages):
+            if i % 2 == agent:
+                msgs.append(msg)
+        return msgs
     
     def get_annotated_messages(self) -> str:
         """Get formatted conversation history."""
         history = []
         for i, message in enumerate(self.messages):
-            agent = "Agent 0" if i % 2 == 0 else "Agent 1"
+            agent = self.agents[i % 2]
             history.append(f"{agent}: {message}")
         return history
     
     def get_annotated_messages2(self, whoami: int) -> str:
         history = []
         for i, message in enumerate(self.messages):
-            anum = 0 if i % 2 == 0 else 1
-            agent = "Me" if whoami == anum else f"Agent {anum}"
+            anum = (i % 2)
+            agent = "Me" if whoami == anum else self.agents[anum]
             history.append(f"{agent}: {message}")
         return history
 
     def convert_to_chat(self) -> List[dict]:
         """
-        Convert to API-style chat history.  
+        Convert to API-style chat history for some embedders  
         Assumes Agent 0=user, Agent 1=assistant
         """
         chat = []

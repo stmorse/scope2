@@ -1,11 +1,13 @@
 {
     "name": "Fender",
 
-    "reward": "entail",
+    "reward": "words",
 
     "base": "I love Fender products.",
 
     "prompt": "I'm in the market for a new guitar, any suggestions?",
+
+    "names": ["Jim", "Rob"],
 
     "personas": {
         "stance": {
@@ -30,6 +32,14 @@
 
         "background": "Amateur guitarist.",
 
-        "personality": ""
+        "personality": "",
+
+        "methods": [
+            "Engage in rational argument that reflects your stance.",
+            "Forcefully press your argument.",
+            "Give a neutral response despite your true inward stance.",
+            "Appeal to emotion to increase the intensity of your argument.",
+            "Change the subject completely."
+        ]
     }
 }

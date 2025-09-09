@@ -81,6 +81,8 @@ def main():
     # scenario params
     with open(os.path.join("scenarios", f"{init["scenario"]}.json"), "r") as f:
         scenario = json.load(f)
+
+    methods = scenario["personas"]["methods"]
     
 
     # --- initialize agents, reward ---
@@ -93,18 +95,20 @@ def main():
         f"(Valences: Agent 0 ({valences[0]}), Agent 1 ({valences[1]}))\n"
     )
     agents = {i: Agent(
-        name=f"Agent {i}",
+        name=scenario["names"][i],
+        order=i,
         provider=init.get("provider"), 
         model=init.get("model"), 
         personality=build_persona(scenario, valences[i]),
-        forcing=(int(init.get("forcing"))==1)
+        forcing=(int(init.get("forcing"))==1),
+        base_method=methods[0],
     ) for i in range(2)}
 
     # Initialize reward function
     _log(f"\nLoading reward model ... ")
     reward = scenario["reward"]
     if reward == "words":
-        reward_function = WordCountReward(agent=1)
+        reward_function = WordCountReward(agent=0)
     elif reward == "harm":
         reward_function = SafetyReward(harm=True)
     elif reward == "safe":
@@ -130,7 +134,10 @@ def main():
     t0 = time.time()
 
     # initialize conversation
-    state = ConversationState(messages=[scenario["prompt"]])
+    state = ConversationState(
+        messages=[scenario["prompt"]], 
+        agents=scenario["names"]
+    )
 
     # iterate through args.turns of dialogue
     for turn in range(init["turns"]):
@@ -148,7 +155,7 @@ def main():
             logger=logger
         )
 
-        results = planner.plan_conversation(state, init["candidates"])
+        results = planner.plan_conversation(state, init["candidates"], methods)
         records = planner.get_records()
         
         _log(f"\nResults (ranked by score):")
