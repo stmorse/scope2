@@ -81,7 +81,13 @@ class ConversationState:
         """Convert to cumulative list of strings"""
         cumulative = list(accumulate(self.messages, lambda x, y: f"{x}\n{y}"))
         return cumulative
-
+    
+    def get_deep_copy(self):
+        new_state = ConversationState(
+            messages=self.messages.copy(),
+            agents=self.agents.copy()
+        )
+        return new_state
 
 class MCTSNode:
     """Node in the MCTS tree for conversation planning."""
@@ -191,3 +197,13 @@ class MCTSNode:
                 f"children={len(self.children)} "
                 f"last msg={self.state.messages[-1]})"
                 )
+
+class LeverNode(MCTSNode):
+    def __init__(self,
+            state: ConversationState, 
+            parent: 'MCTSNode' = None, 
+            action: str = None,
+            lever: str = None,
+    ):
+        super().__init__(state, parent, action)
+        self.lever = lever

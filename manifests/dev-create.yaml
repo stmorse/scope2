@@ -10,26 +10,27 @@ spec:
   # nodeSelector:
   #   kubernetes.io/hostname: gu08.sciclone.wm.edu
   affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-            - matchExpressions:
-              - key: kubernetes.io/hostname
-                operator: In
-                values:
-                - gu07.sciclone.wm.edu
-                - gu08.sciclone.wm.edu
-                - gu09.sciclone.wm.edu
-                - gu10.sciclone.wm.edu
-                - gu11.sciclone.wm.edu
-                - gu12.sciclone.wm.edu
-                - gu13.sciclone.wm.edu
-                - gu14.sciclone.wm.edu
-                - gu15.sciclone.wm.edu
-                - gu16.sciclone.wm.edu
-                - gu17.sciclone.wm.edu
-                - gu18.sciclone.wm.edu
-                - gu19.sciclone.wm.edu
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/hostname
+            operator: In
+            values:
+            - gu07.sciclone.wm.edu
+            - gu08.sciclone.wm.edu
+            - gu09.sciclone.wm.edu
+            - gu10.sciclone.wm.edu
+            - gu11.sciclone.wm.edu
+            - gu12.sciclone.wm.edu
+            - gu13.sciclone.wm.edu
+            - gu14.sciclone.wm.edu
+            - gu15.sciclone.wm.edu
+            - gu16.sciclone.wm.edu
+            - gu17.sciclone.wm.edu
+            - gu18.sciclone.wm.edu
+            - gu19.sciclone.wm.edu
+            - ts4.sciclone.wm.edu
   containers:
     - name: dev-scope
       image: ghcr.io/stmorse/scope2:latest
