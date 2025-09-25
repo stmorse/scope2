@@ -6,11 +6,11 @@ import argparse
 import json
 import logging
 import os
-import pickle
 import time
 
 from agent.agent import Agent
 from mcts.conversation_planner import ConversationPlanner
+from mcts.hierarchical_planner import HierarchicalPlanner
 from mcts.mcts_node import ConversationState
 from mcts.reward_functions import *
 
@@ -46,7 +46,7 @@ def main():
     # --- create logger ---
 
     # Initialize logging
-    logger = logging.getLogger('MCTS_ConversationPlanner')
+    logger = logging.getLogger('MCTS')
     if not logger.handlers:
         # console handler (default: stderr)
         handler = logging.StreamHandler()
@@ -82,7 +82,7 @@ def main():
     with open(os.path.join("scenarios", f"{init["scenario"]}.json"), "r") as f:
         scenario = json.load(f)
 
-    methods = scenario["personas"]["methods"]
+    levers = scenario["levers"]
     
 
     # --- initialize agents, reward ---
@@ -99,9 +99,8 @@ def main():
         order=i,
         provider=init.get("provider"), 
         model=init.get("model"), 
-        personality=build_persona(scenario, valences[i]),
-        forcing=(int(init.get("forcing"))==1),
-        base_method=methods[0],
+        persona=build_persona(scenario, valences[i]),
+        forcing=(int(init.get("forcing"))==1)
     ) for i in range(2)}
 
     # Initialize reward function
@@ -145,17 +144,28 @@ def main():
 
         # Initialize conversation planner
         _log(f"Initializing planner ... ({time.time()-t0:.3f})\n")
-        planner = ConversationPlanner(
+        # planner = ConversationPlanner(
+        #     agents=agents,
+        #     reward_function=reward_function,
+        #     max_depth=init["depth"],
+        #     rollout_depth=init["rollout_depth"],
+        #     num_simulations=init["simulations"],
+        #     exploration_constant=1.414,  # sqrt(2)
+        #     logger=logger
+        # )
+        planner = HierarchicalPlanner(
             agents=agents,
             reward_function=reward_function,
             max_depth=init["depth"],
-            rollout_depth=init["rollout_depth"],
+            branching_factor=len(levers),
+            generations_per_node=5,
             num_simulations=init["simulations"],
-            exploration_constant=1.414,  # sqrt(2)
-            logger=logger
+            exploration_constant=1.4,
+            levers=levers,
+            logger=logger,
         )
 
-        results = planner.plan_conversation(state, init["candidates"], methods)
+        results = planner.plan_conversation(state)
         records = planner.get_records()
         
         _log(f"\nResults (ranked by score):")
@@ -166,7 +176,7 @@ def main():
         best_cand, score = results[0]
         _log(f"\n{"="*60}\nBest candidate (Score: {score}):\n{best_cand}\n")
         
-        # get Agent 0 response
+        # get actual Agent 0 response
         state = state.add_message(best_cand)
         response = agents[0].get_response(state)
         _log(f"Agent 0 response:\n{response}\n")

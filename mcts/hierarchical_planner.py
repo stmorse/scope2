@@ -10,7 +10,7 @@ from logging import Logger
 import random
 from typing import List, Tuple
 
-from .mcts_node import MCTSNode, ConversationState
+from .mcts_node import LeverNode, ConversationState
 from .reward_functions import RewardFunction
 
 
@@ -48,22 +48,50 @@ class HierarchicalPlanner:
     def plan_conversation(self, initial_state: ConversationState):
         """Performs (hierarchical) MCTS over self.levers"""
 
-        # one root for all sims, contains a state ending in a tgt message
-        root = MCTSNode(initial_state, parent=None)
+        self._log(f"\nStarting convo:") 
+        self._log(f"{"\n\n".join(initial_state.get_annotated_messages())}\n")
 
-        for _ in range(self.num_simulations):
+        # one root for all sims, contains a state ending in a tgt message
+        root = LeverNode(initial_state, parent=None)
+
+        self._log(f"Starting {self.num_simulations} simulations ...")
+        for i in range(self.num_simulations):
+            self._log(f"\n*** SIMULATION {i+1}/{self.num_simulations} ***\n")
+
+            self.records[f"sim_{i}"] = []
 
             # --- Selection phase --- 
             # traverse tree to terminal/leaf using UCT
             current, path = self._select(root)
+            self._log(f"Selection path:")
+            self._log(f"{'\n'.join([str(p) for p in path])}")
 
             # --- Expansion phase --- 
             # If terminal: _expand returns `current`
             # Else (must be leaf): _expand returns a new child
-            expanded_node = self._expand(current)
+            expanded_node, score = self._expand(current)
+            self._log(f"Expanded node:\n{str(expanded_node)}\n")
 
             # --- (ROLLOUT) ---
             # TODO
+
+            # --- BACKPROP ---
+            expanded_node.backpropagate(score)
+
+            self.records[f"sim_{i}"].append({
+                "path": [str(p) for p in path],
+                "selected": str(current),
+                "expanded": str(expanded_node),
+                "score": score
+            })
+
+        # get results and scores 
+        results = []
+        for child in root.children:
+            results.append((child.state.messages[-2], child.get_average_reward()))
+
+        return results
+
 
     def _select(self, node):
         """Select path through tree using MCTSNode (UCT) policy."""
@@ -87,17 +115,26 @@ class HierarchicalPlanner:
         Expand node by selecting an un-tried lever and picking best response
         """
 
+        self._log("\nEXPANDING\n")
+
+        self._log(f"> Node:\n{str(node)}\n")
+
         # if at max tree depth, don't add child 
+        # NOTE: we should not hit this condition, we check against it 
         if node.is_terminal(self.max_depth):
-            print(f"[DEBUG] _expand: is_terminal")
+            print(f"> Node is terminal, no expansion")
             return node
 
         # first figure out what levers exist among children of `node`
         existing_levers = [child.lever for child in node.children]
 
+        self._log(f"> Existing levers in children: {existing_levers}")
+
         # select a new lever randomly from remaining
         remaining_levers = set(self.levers) - set(existing_levers)
         lever = random.choice(list(remaining_levers))
+
+        self._log(f"> Expanding with lever: {lever}")
 
         # simulate conditioned response + tgt reply
         responses = []
@@ -105,6 +142,7 @@ class HierarchicalPlanner:
         scores = []
         best_score_index = -1
         for k in range(self.generations_per_node):
+            self._log(f"\n> GENERATION {k+1}/{self.generations_per_node}")
             # create a copy of state for this generation
             temp_state = node.state.get_deep_copy()
 
@@ -117,20 +155,34 @@ class HierarchicalPlanner:
             tgt_reply = self.agents[0].get_response(temp_state)
             tgt_replies.append(tgt_reply)
 
-            # score state
+            # add to state and score state
+            temp_state = temp_state.add_message(tgt_reply)
             score = self.reward_function.calculate_reward(temp_state)
             scores.append(score)
+
+            self._log(f"> Agent 1 response: {response}")
+            self._log(f"> Agent 0 response: {tgt_reply}")
+            self._log(f"> Score: {score:.3f}")
 
             # keep track of greedy pick
             if best_score_index < 0 or score > scores[best_score_index]:
                 best_score_index = k
 
+        self._log("\n> EXPANSION RESULT:")
+        self._log(f"> Best A1 reply: {responses[best_score_index]}")
+        self._log(f"> A0 reply: {tgt_replies[best_score_index]}")
+        self._log(f"> (Score: {scores[best_score_index]})\n")
+
         # construct the new child node
         new_state = node.state.add_message(responses[best_score_index])
         new_state = new_state.add_message(tgt_replies[best_score_index])
-        child = node.add_child(action=node.state.messages[-1], state=new_state)
+        child = node.add_child(
+            state=new_state,
+            action=node.state.messages[-1], 
+            lever=lever,
+        )
 
-        return child
+        return child, scores[best_score_index]
 
     
     # ---------------

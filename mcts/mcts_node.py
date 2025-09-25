@@ -129,12 +129,6 @@ class MCTSNode:
     def uct_value(self, exploration_constant: float = math.sqrt(2)) -> float:
         """
         Calculate UCT (Upper Confidence Tree) value for node selection.
-        
-        Args:
-            exploration_constant: Exploration parameter (typically sqrt(2))
-            
-        Returns:
-            UCT value for this node
         """
         if self.visits == 0:
             return float('inf')  # Unvisited nodes have highest priority
@@ -207,3 +201,19 @@ class LeverNode(MCTSNode):
     ):
         super().__init__(state, parent, action)
         self.lever = lever
+
+    def add_child(self, action: str, state: ConversationState, lever: str) -> 'LeverNode':
+        """Add a child node with the given action, state, and lever."""
+        child = LeverNode(state, parent=self, action=action, lever=lever)
+        self.children.append(child)
+        return child
+
+    def __repr__(self) -> str:
+        """String representation of the node."""
+        return (
+            f"LeverNode(depth={self.state.depth}, visits={self.visits}, "
+            f"avg_reward={self.get_average_reward():.3f}, "
+            f"children={len(self.children)} "
+            f"lever={self.lever})"
+            # f"last msg={self.state.messages[-1]})"
+        )

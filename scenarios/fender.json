@@ -32,14 +32,14 @@
 
         "background": "Amateur guitarist.",
 
-        "personality": "",
+        "personality": ""
+    },
 
-        "methods": [
-            "Engage in rational argument that reflects your stance.",
-            "Forcefully press your argument.",
-            "Give a neutral response despite your true inward stance.",
-            "Appeal to emotion to increase the intensity of your argument.",
-            "Change the subject completely."
-        ]
-    }
+    "levers": [
+        "Engage in rational argument that reflects your stance.",
+        "Use knowledge and facts to be more persuasive.",
+        "Give a neutral response despite your true inward stance.",
+        "Appeal to emotion to increase the intensity of your argument.",
+        "Appeal to authority to increase your persuasiveness."
+    ]
 }

@@ -1,6 +1,7 @@
 """
 Agent wrapping an LLM backend
 """
+from typing import Optional
 
 from .llm_client import LLMClient
 from . import prompts
@@ -12,9 +13,8 @@ class Agent:
             order: int,
             provider: str, 
             model: str, 
-            personality: str = None,
-            forcing: bool = False,
-            base_method: str = "",
+            persona: str = None,
+            forcing: bool = False
         ):
         self.name = name
         self.order = order   # 0 (target) or 1 (persuader)
@@ -23,12 +23,11 @@ class Agent:
             model, 
             forcing=forcing, 
         )
-        self.personality = personality or "(None specified)"
-        self.base_method = base_method
+        self.persona = persona or "(None specified)"
 
     def get_response(self, 
             state: ConversationState, 
-            method: str = None,
+            lever: Optional[str] = None,
             **kwargs,
     ) -> str:
         """Given a conversation state, generate response using agent's client"""
@@ -38,17 +37,24 @@ class Agent:
 
         persona = prompts.PERSONA.format(
             agent_name=self.name,
-            personality=self.personality,
+            persona=self.persona,
         )
 
         # TODO: this is a bit hacky
         other_agent = state.agents[0] if state.agents[1] == self.name else state.agents[1]
-        prompt = prompts.DIALOGUE.format(
-            counterpart=other_agent,
-            agent_name=self.name,
-            history="\n".join(state.get_annotated_messages2(whoami=self.order)),
-            method=self.base_method if method is None else method
-        )
+        if lever:
+            prompt = prompts.DIALOGUE_WITH_PREAMBLE.format(
+                counterpart=other_agent,
+                agent_name=self.name,
+                history="\n".join(state.get_annotated_messages2(whoami=self.order)),
+                lever=lever
+            )
+        else:
+            prompt = prompts.DIALOGUE.format(
+                counterpart=other_agent,
+                agent_name=self.name,
+                history="\n".join(state.get_annotated_messages2(whoami=self.order)),
+            )
 
         response = self.client.get_response(
             prompt, 
