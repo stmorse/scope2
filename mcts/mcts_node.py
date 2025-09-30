@@ -4,7 +4,7 @@ Implements Upper Confidence Tree (UCT) policy for node selection.
 """
 
 import math
-from typing import List, Optional
+from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from itertools import accumulate
 
@@ -198,13 +198,20 @@ class LeverNode(MCTSNode):
             parent: 'MCTSNode' = None, 
             action: str = None,
             lever: str = None,
+            generations: List[Tuple[str,str]] = None,
     ):
         super().__init__(state, parent, action)
         self.lever = lever
+        self.generations = generations
 
-    def add_child(self, action: str, state: ConversationState, lever: str) -> 'LeverNode':
+    def add_child(self, 
+            action: str, 
+            state: ConversationState, 
+            lever: str,
+            generations: List[Tuple[str,str]],
+        ) -> 'LeverNode':
         """Add a child node with the given action, state, and lever."""
-        child = LeverNode(state, parent=self, action=action, lever=lever)
+        child = LeverNode(state, parent=self, action=action, lever=lever, generations=generations)
         self.children.append(child)
         return child
 
@@ -217,3 +224,5 @@ class LeverNode(MCTSNode):
             f"lever={self.lever})"
             # f"last msg={self.state.messages[-1]})"
         )
+
+

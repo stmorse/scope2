@@ -70,7 +70,6 @@ class HierarchicalPlanner:
             # If terminal: _expand returns `current`
             # Else (must be leaf): _expand returns a new child
             expanded_node, score = self._expand(current)
-            self._log(f"Expanded node:\n{str(expanded_node)}\n")
 
             # --- (ROLLOUT) ---
             # TODO
@@ -78,19 +77,26 @@ class HierarchicalPlanner:
             # --- BACKPROP ---
             expanded_node.backpropagate(score)
 
+            self._log(f"Expanded node:\n{str(expanded_node)}\n")
+
             self.records[f"sim_{i}"].append({
                 "path": [str(p) for p in path],
                 "selected": str(current),
                 "expanded": str(expanded_node),
+                "messages": [expanded_node.state.messages],
                 "score": score
             })
 
         # get results and scores 
         results = []
         for child in root.children:
-            results.append((child.state.messages[-2], child.get_average_reward()))
+            results.append((
+                child.state.messages[-2], 
+                child.get_average_reward(),
+                child.lever,
+            ))
 
-        return results
+        return results, root
 
 
     def _select(self, node):
@@ -136,6 +142,10 @@ class HierarchicalPlanner:
 
         self._log(f"> Expanding with lever: {lever}")
 
+        self._log("\nCONVERSATION STATE:")
+        self._log("\n".join(node.state.get_annotated_messages()))
+        self._log("---")
+
         # simulate conditioned response + tgt reply
         responses = []
         tgt_replies = []
@@ -180,6 +190,7 @@ class HierarchicalPlanner:
             state=new_state,
             action=node.state.messages[-1], 
             lever=lever,
+            generations=list(zip(responses, tgt_replies)),
         )
 
         return child, scores[best_score_index]

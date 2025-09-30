@@ -13,16 +13,18 @@ DIALOGUE_WITH_PREAMBLE = (
     "What is your response? Answer in the first person, "
     # "addressing {counterpart} directly, "
     "provide only your response, "
-    "and keep your response SHORT, 2-3 sentences."
+    "and keep your response SHORT, 2-3 sentences. "
+    "You are addressing {counterpart}."
 )
 
 DIALOGUE = (
     "You are having a conversation with another person, named {counterpart}. "
     "Here is a transcript of the dialogue so far:"
     "\n\n{history}\n\n"
-    "It is now your turn to respond to {counterpart}. "
+    "It is now your turn to respond. "
     "What is your response? Answer in the first person, "
     # "addressing {counterpart} directly, "
     "provide only your response, "
-    "and keep your response SHORT, 2-3 sentences."
+    "and keep your response SHORT, 2-3 sentences. "
+    "You are addressing {counterpart}."
 )

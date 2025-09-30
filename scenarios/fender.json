@@ -1,7 +1,7 @@
 {
     "name": "Fender",
 
-    "reward": "words",
+    "reward": "entail",
 
     "base": "I love Fender products.",
 

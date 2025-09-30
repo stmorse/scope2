@@ -6,6 +6,7 @@ import argparse
 import json
 import logging
 import os
+import pickle
 import time
 
 from agent.agent import Agent
@@ -165,16 +166,18 @@ def main():
             logger=logger,
         )
 
-        results = planner.plan_conversation(state)
+        results, root = planner.plan_conversation(state)
         records = planner.get_records()
         
         _log(f"\nResults (ranked by score):")
         results.sort(key=lambda x: x[1], reverse=True)
-        for i, (candidate, score) in enumerate(results, 1):
-            _log(f"\nRank {i} (Score: {score:.4f})\nResponse: {candidate}\n")
+        for i, (candidate, score, lever) in enumerate(results, 1):
+            _log(f"\nRank {i} (Score: {score:.4f}) (Lever: {lever})")
+            _log(f"{candidate}\n")
             
-        best_cand, score = results[0]
-        _log(f"\n{"="*60}\nBest candidate (Score: {score}):\n{best_cand}\n")
+        best_cand, score, lever = results[0]
+        _log(f"\n{"="*60}\nBest candidate (Score: {score})(Lever: {lever}):")
+        _log(f"{best_cand}\n")
         
         # get actual Agent 0 response
         state = state.add_message(best_cand)
@@ -197,6 +200,10 @@ def main():
         with open(save_path, "w") as f:
             # pickle.dump(full_record, f)
             json.dump(full_record, f)
+
+        save_path2 = os.path.join(path, f"turn_{turn}_root.pkl")
+        with open(save_path2, "wb") as f:
+            pickle.dump(root, f)
 
     _log(f"\n\n{"="*60}\n\nTranscript of entire conversation:\n")
     _log("\n\n".join(state.get_annotated_messages()))

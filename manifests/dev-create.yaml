@@ -31,6 +31,7 @@ spec:
             - gu18.sciclone.wm.edu
             - gu19.sciclone.wm.edu
             - ts4.sciclone.wm.edu
+            - dss.sciclone.wm.edu
   containers:
     - name: dev-scope
       image: ghcr.io/stmorse/scope2:latest
@@ -82,7 +83,6 @@ spec:
     #     path: /sciclone/data10/twford/reddit/reddit
     - name: results
       nfs:
-        server: 192.168.59.144   # infiniband
-        #server: 128.239.59.144   # ethernet
-        #server: proj-ds-ib.sciclone.wm.edu   # <-- doesn't work (yet)
+        # server: 192.168.59.144   # infiniband
+        server: 128.239.59.144   # ethernet
         path: /sciclone/proj-ds/geograd/stmorse
