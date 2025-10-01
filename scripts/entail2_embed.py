@@ -18,7 +18,7 @@ from mcts.mcts_node import LeverNode, ConversationState
 scenario_name = "fender"
 experiment_name = "fenderh"
 # v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
-v0s = [0.3]
+v0s = [0.4]
 v1 = 1
 
 if not experiment_name.startswith(scenario_name):

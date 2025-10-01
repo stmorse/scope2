@@ -17,7 +17,7 @@ class ConversationState:
     
     @property
     def depth(self) -> int:
-        return len(self.messages)
+        return len(self.messages) // 2    # this is a bit rough
     
     @property
     def current_turn(self) -> int:
