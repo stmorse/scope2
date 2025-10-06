@@ -36,7 +36,7 @@ class ConversationState:
         if self.depth < 2 and agent == 1:
             raise ValueError(f"Agent {self.agents[agent]} hasn't spoken yet.")
         
-        last_is_1 = (self.depth % 2 == 0)
+        last_is_1 = (len(self.messages) % 2 == 0)
         
         if agent==0:
             return self.messages[-2] if last_is_1 else self.messages[-1]

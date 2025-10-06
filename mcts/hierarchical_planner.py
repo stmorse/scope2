@@ -129,7 +129,7 @@ class HierarchicalPlanner:
         # NOTE: we should not hit this condition, we check against it 
         if node.is_terminal(self.max_depth):
             print(f"> Node is terminal, no expansion")
-            return node
+            return node, node.get_average_reward()
 
         # first figure out what levers exist among children of `node`
         existing_levers = [child.lever for child in node.children]

@@ -62,7 +62,7 @@ def main():
 
         logger.addHandler(handler)
         logger.addHandler(file_handler)
-        logger.setLevel(logging.INFO)
+        logger.setLevel(logging.DEBUG)
 
     def _log(message):
         try:

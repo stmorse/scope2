@@ -8,17 +8,14 @@ import pickle
 import os
 import sys
 
-import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
-from mcts.mcts_node import LeverNode, ConversationState
-
 
 scenario_name = "fender"
-experiment_name = "fenderh"
-# v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
-v0s = [0.4]
+experiment_name = "fenderh2"
+v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+# v0s = [0.4]
 v1 = 1
 
 if not experiment_name.startswith(scenario_name):
@@ -87,7 +84,7 @@ for v0 in v0s:
     
     # data
     texts = []      # raw texts
-    labels = []     # (turn, layer, child, lever, generation (-1 is selected))
+    labels = []     # (turn, layer, child, parent, lever, generation (-1 is selected))
     embeddings = []
     probs = []
     
@@ -112,8 +109,14 @@ for v0 in v0s:
     print("Loading model ...")
     entailer = NLIWrapper()
 
-    def _embed_children(node, turn, layer):
+    # master index for nodes (using list to make it mutable)
+    node_idx = [0]
+
+    def _embed_children(node, turn, layer, parent_idx):
         for k, child in enumerate(node.children):
+            current_node_idx = node_idx[0]
+            node_idx[0] += 1
+            
             lever = levers.index(child.lever)
 
             # embed generations
@@ -121,15 +124,15 @@ for v0 in v0s:
             for gen in child.generations:
                 for msg in gen:
                     texts.append(msg)
-                    labels.append((turn, layer, k, lever, gi))
+                    labels.append((turn, layer, k, parent_idx, lever, gi, current_node_idx))
                 gi += 1
 
             # embed state
             for msg in child.state.messages[-2:]:
                 texts.append(msg)
-                labels.append((turn, layer, k, lever, gi))
+                labels.append((turn, layer, k, parent_idx, lever, gi, current_node_idx))
 
-            _embed_children(child, turn, layer+1)
+            _embed_children(child, turn, layer+1, current_node_idx)
 
     # iterate thru each turn's root node and build embeddings
     for fname in os.listdir(exp_path):
@@ -138,7 +141,10 @@ for v0 in v0s:
             with open(os.path.join(exp_path, fname), "rb") as f:
                 root = pickle.load(f)
 
-            _embed_children(root, turn, 1)
+            # start with root node index for this turn
+            root_idx = node_idx[0]
+            node_idx[0] += 1
+            _embed_children(root, turn, 1, root_idx)
 
     META["trees_length"] = len(texts) - META["convo_length"]
 

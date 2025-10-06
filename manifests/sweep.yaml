@@ -20,12 +20,12 @@ data:
     a_val="${A[A_IDX]}"
 
     ARGS=(
-      --path       "fender0"
+      --path       "fenderh2"
       --valence0   $a_val
     )
 
     echo "> running combo #$IDX -> ${ARGS[*]}"
-    exec python /app/main.py "${ARGS[@]}"
+    python /app/main.py "${ARGS[@]}"
 ---
 # ---- job ----
 apiVersion: batch/v1
@@ -36,11 +36,11 @@ metadata:
 spec:
   # ttlSecondsAfterFinished: 300   # job (and pods) deleted 5 min after finish
   completions: 12        # total combos
-  parallelism: 2         # num to run at once
+  parallelism: 3         # num to run at once
   completionMode: Indexed
   template:
     spec:
-      restartPolicy: OnFailure
+      restartPolicy: Never
       securityContext:
         runAsUser: 270999 # run id command in terminal to get your UID
         runAsGroup: 50038
@@ -55,29 +55,30 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - gu07.sciclone.wm.edu
-                - gu08.sciclone.wm.edu
-                - gu09.sciclone.wm.edu
-                - gu10.sciclone.wm.edu
-                - gu11.sciclone.wm.edu
-                - gu12.sciclone.wm.edu
-                - gu13.sciclone.wm.edu
-                - gu14.sciclone.wm.edu
-                - gu15.sciclone.wm.edu
-                - gu16.sciclone.wm.edu
-                - gu17.sciclone.wm.edu
-                - gu18.sciclone.wm.edu
-                - gu19.sciclone.wm.edu
+                - dss.sciclone.wm.edu
+                # - gu07.sciclone.wm.edu
+                # - gu08.sciclone.wm.edu
+                # - gu09.sciclone.wm.edu
+                # - gu10.sciclone.wm.edu
+                # - gu11.sciclone.wm.edu
+                # - gu12.sciclone.wm.edu
+                # - gu13.sciclone.wm.edu
+                # - gu14.sciclone.wm.edu
+                # - gu15.sciclone.wm.edu
+                # - gu16.sciclone.wm.edu
+                # - gu17.sciclone.wm.edu
+                # - gu18.sciclone.wm.edu
+                # - gu19.sciclone.wm.edu
       containers:
       - name: scope-grid
         image: ghcr.io/stmorse/scope2:latest
         resources:
           requests:
-            memory: '64Gi'
+            memory: '24Gi'
             nvidia.com/gpu: '1'
             cpu: '4'
           limits:
-            memory: '64Gi'
+            memory: '24Gi'
             nvidia.com/gpu: '1'
             cpu: '4'
         # mount the script from the ConfigMap
@@ -117,8 +118,8 @@ spec:
           path: /sciclone/home/stmorse/projects/scope2
       - name: results
         nfs:
-          server: 192.168.59.144    #infiniband
-          # server: 128.239.59.144  #ethernet
+          # server: 192.168.59.144    #infiniband
+          server: 128.239.59.144  #ethernet
           path: /sciclone/proj-ds/geograd/stmorse
       imagePullSecrets:
       - name: ghcr-secret

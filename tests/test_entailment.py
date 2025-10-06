@@ -23,6 +23,18 @@ tests = [
     {
         "base": "I like Fender guitar products.",
         "messages": [
+            (
+                "Rob, I'm not saying Fender hasn't made some incredible guitars over the years, "
+                "but there's definitely something to be said for exploring other options too. "
+                "Have you considered a PRS or a Gibson Les Paul? I've had my eye on those models for a while now..."
+            ),
+            (
+                "Rob, I think Bruce Springsteen's guitar of choice is a great example, "
+                "but let's not forget about other legendary Fender users like Jimi Hendrix - "
+                "his psychedelic Strat playing is still giving me chills to this day! "
+                "Still, I'd love to explore some other options with you, maybe we can look "
+                "into the PRS or Gibson lineup as well."
+            ),
             "I've heard great things about the Fender American Professional series",
             (
                 "I've heard great things about the Fender American Professional series, "
@@ -64,14 +76,14 @@ def main():
     
     for test in tests:
         base = test["base"]
-        states = [ConversationState(messages=[msg]) for msg in test["messages"]]
+        states = [ConversationState(messages=[msg], agents=["Alice", "Bob"]) for msg in test["messages"]]
 
         rewards["Entail"].set_hypothesis(base)
         rewards["Topic"].set_topic(base)
 
         print(f"HYPOTHESIS: {base}")
         for state in states:
-            print(f"\nSentence: {state.messages[-1]}")
+            print(f"\nSentence: {state.get_last_message(agent=0)}")
             for name, reward in rewards.items():
                 print(f"  {name}: {reward.calculate_reward(state)}")
 
