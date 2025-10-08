@@ -1,6 +1,5 @@
 """
 Loads MCTS outputs, embeds+scores with NLI, saves
-TODO: terrible indexing system here
 """
 
 import json
@@ -8,15 +7,18 @@ import pickle
 import os
 import sys
 
+import numpy as np
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 
 
 scenario_name = "fender"
-experiment_name = "fenderh2"
-v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
-# v0s = [0.4]
+experiment_name = "fender/fenderh_base_mult"
+planning = True
+# v0s = [-1, 0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.]
+v0s = [0.5]
 v1 = 1
+offsets = np.arange(12)
 
 if not experiment_name.startswith(scenario_name):
     print(f"WARNING: SCENARIO AND EXPERIMENT DO NOT MATCH.")
@@ -62,10 +64,13 @@ class NLIWrapper:
 
 # --- LOAD RECORDS ---
 
-for v0 in v0s:
+# for v0 in v0s:
+v0 = v0s[0]
+for off in offsets:
 
     base_path = os.path.join(PROJ_PATH, experiment_name)
-    exp_path = os.path.join(base_path, f"v0_{v0:.2f}_v1_{v1:.2f}")
+    # exp_path = os.path.join(base_path, f"v0_{v0:.2f}_v1_{v1:.2f}")
+    exp_path = os.path.join(base_path, f"v0_{v0:.2f}_v1_{v1:.2f}/_{off}")
     save_path = os.path.join(exp_path, "embed.pkl")
 
     print(f"\n{"="*30}\n")
@@ -105,10 +110,6 @@ for v0 in v0s:
 
     # --- GRAB AND LABEL TEXTS FROM MCTS ---
 
-    # now build all trees with embeddings
-    print("Loading model ...")
-    entailer = NLIWrapper()
-
     # master index for nodes (using list to make it mutable)
     node_idx = [0]
 
@@ -134,17 +135,18 @@ for v0 in v0s:
 
             _embed_children(child, turn, layer+1, current_node_idx)
 
-    # iterate thru each turn's root node and build embeddings
-    for fname in os.listdir(exp_path):
-        if fname.startswith("turn") and fname.endswith("pkl"):
-            turn = int(fname[5:6])
-            with open(os.path.join(exp_path, fname), "rb") as f:
-                root = pickle.load(f)
+    if planning:
+        # iterate thru each turn's root node and build embeddings
+        for fname in os.listdir(exp_path):
+            if fname.startswith("turn") and fname.endswith("pkl"):
+                turn = int(fname[5:6])
+                with open(os.path.join(exp_path, fname), "rb") as f:
+                    root = pickle.load(f)
 
-            # start with root node index for this turn
-            root_idx = node_idx[0]
-            node_idx[0] += 1
-            _embed_children(root, turn, 1, root_idx)
+                # start with root node index for this turn
+                root_idx = node_idx[0]
+                node_idx[0] += 1
+                _embed_children(root, turn, 1, root_idx)
 
     META["trees_length"] = len(texts) - META["convo_length"]
 
@@ -184,7 +186,7 @@ for v0 in v0s:
             "embeddings": embeddings,
             "probs": probs,
             "texts": texts,
-            "labels": labels,
+            "labels": labels if planning else [],
             "meta": META,
         }, f)
 

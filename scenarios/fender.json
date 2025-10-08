@@ -7,9 +7,9 @@
 
     "prompt": "I'm in the market for a new guitar, any suggestions?",
 
-    "names": ["Jim", "Rob"],
-
     "personas": {
+        "names": ["Jim", "Rob"],
+
         "stance": {
             "-1.00": "Maintains a strongly negative viewpoint regarding Fender products, expressing utter disdain and disgust towards the brand, its quality, and its overall reputation, with no redeeming qualities acknowledged whatsoever.", 
             "-0.75": "Maintains a strongly negative view toward Fender products, expressing significant disappointment and disapproval with the brand's offerings and overall quality", 
@@ -30,9 +30,10 @@
             "1.00": "Maintains an unwavering enthusiasm and unrelenting admiration for Fender products, consistently expressing wholehearted endorsement and fervent support for the brand's entire lineup of instruments and accessories."
         },
 
-        "background": "Amateur guitarist.",
-
-        "personality": ""
+        "background": [
+            "Amateur guitarist interested in buying a new guitar.",
+            "Experienced guitarist trying to convince someone to buy Fender products."
+        ]
     },
 
     "levers": [

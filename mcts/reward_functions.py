@@ -57,9 +57,11 @@ class NLIReward(RewardFunction):
         self.hypothesis = hypothesis
         print(f"NLIReward new hypothesis: {self.hypothesis}")
 
-    def calculate_reward(self, state):
+    def calculate_reward(self, state, ):
         # for now just get the last message of Agent 0
-        premise = state.get_last_message(agent=0)
+        # premise = state.get_last_message(agent=0)
+        premise = " ".join(state.get_messages_from_agent(agent=0))
+        # print(f"[DEBUG] {premise}")
 
         # tokenize and put on GPU
         input = self.tokenizer(premise, self.hypothesis, truncation=True, return_tensors="pt")

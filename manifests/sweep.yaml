@@ -12,7 +12,8 @@ data:
     IDX="${JOB_IDX:?}"
 
     # parameter grid
-    A=(-1.0 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0)
+    # A=(-1.0 0.0 0.1 0.2 0.3 0.4 0.5 0.6 0.7 0.8 0.9 1.0)
+    A=(0 1 2 3 4 5 6 7 8 9 10 11)
 
     # map index to combo  
     A_IDX=$(( IDX % ${#A[@]} ))
@@ -20,8 +21,10 @@ data:
     a_val="${A[A_IDX]}"
 
     ARGS=(
-      --path       "fenderh2"
-      --valence0   $a_val
+      --path       "fender/fenderh_full_mult"
+      --valence0   0.5
+      --planning   1
+      --offset     $a_val
     )
 
     echo "> running combo #$IDX -> ${ARGS[*]}"

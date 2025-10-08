@@ -21,7 +21,7 @@ data:
     a_val="${A[A_IDX]}"
 
     ARGS=(
-      --path       "fender0"
+      --path       "fender/fenderh"
       --valence0   $a_val
     )
 

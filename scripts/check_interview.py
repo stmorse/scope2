@@ -14,7 +14,7 @@ from mcts.reward_functions import NLIReward
 
 scenario_name = "fender"
 experiment_name = "fenderh2"
-v0 = -1
+v0 = 0.1
 v1 = 1
 
 
@@ -59,11 +59,18 @@ reasons = []
 
 def _record_children(node):
     for k, child in enumerate(node.children):
+        # print(f"[DEBUG] {child.state.messages}")
+
         # get interview response
-        interview_res, reason = agent0.interview(
-            child.state, hypothesis=hypothesis, provide_rationale=True)
+        interview_res = agent0.interview(
+            child.state, hypothesis=hypothesis)
+        
+        # print(interview_res)
+        # print(reason)
+        # print()
+
         interview_scores.append(interview_res)
-        reasons.append(reason)
+        reasons.append("")
 
         # get entailment score
         entail_score = reward_function.calculate_reward(child.state)

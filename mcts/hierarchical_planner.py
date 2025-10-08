@@ -52,7 +52,7 @@ class HierarchicalPlanner:
         self._log(f"{"\n\n".join(initial_state.get_annotated_messages())}\n")
 
         # one root for all sims, contains a state ending in a tgt message
-        root = LeverNode(initial_state, parent=None)
+        root = LeverNode(initial_state, parent=None, depth=0)
 
         self._log(f"Starting {self.num_simulations} simulations ...")
         for i in range(self.num_simulations):

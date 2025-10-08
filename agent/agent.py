@@ -67,7 +67,7 @@ class Agent:
     def interview(self,
             state: ConversationState,
             hypothesis: str,
-            provide_rationale: bool = False,
+            # provide_rationale: bool = False,
             **kwargs,
     ) -> int:
 
@@ -87,7 +87,7 @@ class Agent:
 
         response = self.client.get_response(
             prompt,
-            system_message=persona,
+            # system_message=persona,
             **kwargs
         )
 
@@ -96,22 +96,6 @@ class Agent:
             res = int(response)
         except Exception as e:
             print(f"Error parsing interview response: {response} ({e})")
-
-        if provide_rationale:
-            prompt = prompts.INTERVIEW_RATIONALE.format(
-                counterpart=other_agent,
-                history="\n".join(state.get_annotated_messages2(whoami=self.order)),
-                hypothesis=hypothesis,
-                rating=res,
-            )
-
-            reason = self.client.get_response(
-                prompt,
-                system_message=persona,
-                **kwargs,
-            )
-
-            return res, reason
         
         return res
 

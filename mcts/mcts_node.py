@@ -45,9 +45,8 @@ class ConversationState:
 
     def get_messages_from_agent(self, agent: int=0) -> List[str]:
         msgs = []
-        for i, msg in enumerate(self.messages):
-            if i % 2 == agent:
-                msgs.append(msg)
+        for i in range(agent, len(self.messages), 2):
+            msgs.append(self.messages[i])
         return msgs
     
     def get_annotated_messages(self) -> str:
@@ -96,6 +95,7 @@ class MCTSNode:
             state: ConversationState, 
             parent: Optional['MCTSNode'] = None, 
             action: Optional[str] = None,
+            depth: Optional[int] = 0,
         ):
         """
         Initialize MCTS node.
@@ -108,6 +108,7 @@ class MCTSNode:
         self.state = state
         self.parent = parent
         self.action = action  # The message that led to this state
+        self.depth = depth
         self.children: List['MCTSNode'] = []
         self.visits = 0
         self.total_reward = 0.0
@@ -118,7 +119,7 @@ class MCTSNode:
     
     def is_terminal(self, max_depth: int) -> bool:
         """Check if this is a terminal node (reached max depth)."""
-        return self.state.depth >= max_depth
+        return self.depth >= max_depth
     
     def get_average_reward(self) -> float:
         """Get average reward for this node."""
@@ -156,7 +157,7 @@ class MCTSNode:
     
     def add_child(self, action: str, state: ConversationState) -> 'MCTSNode':
         """Add a child node with the given action and state."""
-        child = MCTSNode(state, parent=self, action=action)
+        child = MCTSNode(state, parent=self, action=action, depth=self.depth+1)
         self.children.append(child)
         return child
     
@@ -186,21 +187,23 @@ class MCTSNode:
     
     def __repr__(self) -> str:
         """String representation of the node."""
-        return (f"MCTSNode(depth={self.state.depth}, visits={self.visits}, "
-                f"avg_reward={self.get_average_reward():.3f}, "
-                f"children={len(self.children)} "
-                f"last msg={self.state.messages[-1]})"
-                )
+        return (
+            f"MCTSNode(depth={self.depth}, visits={self.visits}, "
+            f"avg_reward={self.get_average_reward():.3f}, "
+            f"children={len(self.children)} "
+            f"last msg={self.state.messages[-1]})"
+        )
 
 class LeverNode(MCTSNode):
     def __init__(self,
             state: ConversationState, 
             parent: 'MCTSNode' = None, 
             action: str = None,
+            depth: int = None,
             lever: str = None,
             generations: List[Tuple[str,str]] = None,
     ):
-        super().__init__(state, parent, action)
+        super().__init__(state, parent, action, depth)
         self.lever = lever
         self.generations = generations
 
@@ -211,14 +214,17 @@ class LeverNode(MCTSNode):
             generations: List[Tuple[str,str]],
         ) -> 'LeverNode':
         """Add a child node with the given action, state, and lever."""
-        child = LeverNode(state, parent=self, action=action, lever=lever, generations=generations)
+        child = LeverNode(
+            state, parent=self, action=action, depth=self.depth+1,
+            lever=lever, generations=generations
+        )
         self.children.append(child)
         return child
 
     def __repr__(self) -> str:
         """String representation of the node."""
         return (
-            f"LeverNode(depth={self.state.depth}, visits={self.visits}, "
+            f"LeverNode(depth={self.depth}, visits={self.visits}, "
             f"avg_reward={self.get_average_reward():.3f}, "
             f"children={len(self.children)} "
             f"lever={self.lever})"
