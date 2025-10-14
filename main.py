@@ -16,7 +16,8 @@ from mcts.mcts_node import ConversationState
 from mcts.reward_functions import *
 
 
-BASE_PATH = "/sciclone/proj-ds/geograd/stmorse/mdp"
+# BASE_PATH = "/sciclone/proj-ds/geograd/stmorse/mdp"
+BASE_PATH = "/home/stmorse/data/mdp"
 
 def build_persona(scenario, valence, order):
     stance = scenario["personas"]["stance"][f"{valence:.2f}"].strip()
@@ -106,7 +107,7 @@ def main():
         provider=init.get("provider"), 
         model=init.get("model"), 
         persona=build_persona(scenario, valences[i], i),
-        forcing=(int(init.get("forcing"))==1)
+        forcing=(int(init.get("forcing", 0))==1)
     ) for i in range(2)}
 
     if args.planning == 1:

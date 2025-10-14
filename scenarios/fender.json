@@ -3,7 +3,7 @@
 
     "reward": "entail",
 
-    "base": "I love Fender products.",
+    "base": "I will buy Fender products.",
 
     "prompt": "I'm in the market for a new guitar, any suggestions?",
 
