@@ -10,3 +10,5 @@ y-temp/
 z-archive/
 
 config.ini
+
+myproj.egg-info/
