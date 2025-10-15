@@ -25,6 +25,14 @@ class Agent:
         )
         self.persona = persona or "(None specified)"
 
+    @classmethod
+    def build_persona(cls, scenario, valence, order):
+        stance = scenario["personas"]["stance"][f"{valence:.2f}"].strip()
+        background = scenario["personas"]["background"][order].strip()
+
+        persona = f"{background} {stance}"
+        return persona
+
     def get_response(self, 
             state: ConversationState, 
             lever: Optional[str] = None,
@@ -68,6 +76,7 @@ class Agent:
             state: ConversationState,
             hypothesis: str,
             # provide_rationale: bool = False,
+            use_persona: bool = True,
             **kwargs,
     ) -> int:
 
@@ -85,11 +94,14 @@ class Agent:
             hypothesis=hypothesis,
         )
 
-        response = self.client.get_response(
-            prompt,
-            # system_message=persona,
-            **kwargs
-        )
+        if use_persona:
+            response = self.client.get_response(
+                prompt,
+                system_message=persona,
+                **kwargs
+            )
+        else:
+            response = self.client.get_response(prompt, **kwargs)
 
         res = -1
         try:

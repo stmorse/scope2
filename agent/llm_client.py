@@ -1,5 +1,6 @@
 import configparser
 import random
+import os
 from typing import List
 
 import ollama
@@ -29,7 +30,11 @@ class LLMClient:
 
         # load provider configs
         self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
+        # self.config.read('config.ini')
+        # Dynamically determine the absolute path to config.ini
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        config_path = os.path.join(base_dir, "config.ini")
+        self.config.read(config_path)
         
         self._get_model_response = None
         self.set_model()
