@@ -20,10 +20,9 @@ from mcts.mcts_node import ConversationState
 v0 = 0.2
 v1 = 1
 scenario_name = "fender"
-# experiment_name = f"fender/spreads_t_{TEMPERATURE}_v0_{v0}"
-experiment_name = f"fender/spreads_multi2_temp_v0_0.2"
+experiment_name = f"fender/spreads_big_v0_0.20"
 
-N_TRIALS_PER_LEVER = 5      # Persuader responses per lever
+N_TRIALS_PER_LEVER = 20      # Persuader responses per lever
 N_RESPONSE_PER_TRIAL = 20    # Target responses per persuader response
 
 
@@ -75,19 +74,9 @@ class NLIWrapper:
 class SemanticWrapper:
     def __init__(self, 
             model_name: str = "all-MiniLM-L6-v2", 
-            topic_sentence: str = "",
             device: str = "cuda",
     ):
         self.model = SentenceTransformer(model_name, device=device)
-        # self.topic_sentence = topic_sentence
-
-        # embed the topic sentence
-        # self.centroid = self.model.encode(self.topic_sentence, normalize_embeddings=True)
-
-    # def get_embed_and_prob(self, text: str) -> np.ndarray:
-    #     v = self.model.encode([text], normalize_embeddings=True)[0]  # L2-normalized
-    #     score = self.model.similarity(v, self.centroid)
-    #     return v.astype(np.float32), score
     
     def get_embed(self, text: str):
         v = self.model.encode([text], normalize_embeddings=True)[0]  # L2-normalized
@@ -150,7 +139,8 @@ sem_model = SemanticWrapper()
 results = {}
 
 _log("Generating responses ...")
-for temp in np.arange(0, 0.21, 0.05):
+# for temp in np.arange(0, 0.21, 0.05):
+for temp in [0.8]:
     _log(f"\nTEMP: {temp:.2f}")
 
     results[f"{temp:.2f}"] = {}
