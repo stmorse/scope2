@@ -3,6 +3,7 @@ Entrypoint for running MCTS
 """
 
 import argparse
+import configparser
 import json
 import logging
 import os
@@ -12,29 +13,23 @@ import time
 from agent.agent import Agent
 from mcts.conversation_planner import ConversationPlanner
 from mcts.hierarchical_planner import HierarchicalPlanner
+from mcts.struct_planner import StructPlanner
 from mcts.mcts_node import ConversationState
 from mcts.reward_functions import *
 
 
-# BASE_PATH = "/sciclone/proj-ds/geograd/stmorse/mdp"
-BASE_PATH = "/home/stmorse/data/mdp"
-
-def build_persona(scenario, valence, order):
-    stance = scenario["personas"]["stance"][f"{valence:.2f}"].strip()
-    background = scenario["personas"]["background"][order].strip()
-    # personality = scenario["personas"]["personality"].strip()
-
-    persona = f"{background} {stance}"
-    return persona
-
 def main():
     """Main function to run conversation planning."""
+
+    config = configparser.ConfigParser()
+    config.read("config.ini")
+    BASE_PATH = config.get("path", "PROJ_PATH")
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--path", type=str, default=f"test")
     parser.add_argument("--valence0", type=float, default=-1.0)
     parser.add_argument("--valence1", type=float, default=1.0)
-    parser.add_argument("--planning", type=int, default=1)
+    parser.add_argument("--planner", type=str, default="col")
     parser.add_argument("--offset", type=int, default=-1)
     args = parser.parse_args()
 
@@ -92,9 +87,8 @@ def main():
     levers = scenario["levers"]
     
 
-    # --- initialize agents, reward ---
+    # --- INIT AGENTS ---
 
-    # initialize agents
     valences = [args.valence0, args.valence1]
     _log(
         f"\nInitializing agents:\n "
@@ -106,11 +100,14 @@ def main():
         order=i,
         provider=init.get("provider"), 
         model=init.get("model"), 
-        persona=build_persona(scenario, valences[i], i),
+        persona=Agent.build_persona(scenario, valences[i], i),
         forcing=(int(init.get("forcing", 0))==1)
     ) for i in range(2)}
 
-    if args.planning == 1:
+
+    # --- INIT REWARD ---
+
+    if args.planner != "off":
         # Initialize reward function
         _log(f"\nLoading reward model ... ")
         reward = scenario["reward"]
@@ -136,9 +133,29 @@ def main():
 
     _log(f"Configuration: {init}\n")
     _log(f"Initial prompt: \n\"{scenario["prompt"]}\"\n")
+
+
+    # --- INIT PLANNER ---
     
+    _log(f"Initializing planner ... \n")
+    if args.planner == "col":
+        planner = StructPlanner(
+            agents=agents,
+            reward_function=reward_function,
+            max_depth=init["depth"],
+            branching_factor=len(levers),
+            generations_per_node=5,
+            num_simulations=init["simulations"],
+            exploration_constant=1.4,
+            levers=levers,
+            logger=logger,
+        )
+    else:
+        # TODO: implement other planners
+        pass
+        
     
-    # --- run experiment ---
+    # --- RUN ---
 
     t0 = time.time()
 
@@ -152,29 +169,8 @@ def main():
     for turn in range(init["turns"]):
         _log(f"\n{"=" * 20} TURN {turn+1}/{init["turns"]} {"=" * 20}\n")
 
-        if args.planning == 1:
-            # Initialize conversation planner
-            _log(f"Initializing planner ... ({time.time()-t0:.3f})\n")
-            # planner = ConversationPlanner(
-            #     agents=agents,
-            #     reward_function=reward_function,
-            #     max_depth=init["depth"],
-            #     rollout_depth=init["rollout_depth"],
-            #     num_simulations=init["simulations"],
-            #     exploration_constant=1.414,  # sqrt(2)
-            #     logger=logger
-            # )
-            planner = HierarchicalPlanner(
-                agents=agents,
-                reward_function=reward_function,
-                max_depth=init["depth"],
-                branching_factor=len(levers),
-                generations_per_node=5,
-                num_simulations=init["simulations"],
-                exploration_constant=1.4,
-                levers=levers,
-                logger=logger,
-            )
+        # --- GET PERSUADER RESPONSE ---
+        if args.planner != "off":
 
             results, root = planner.plan_conversation(state)
             records = planner.get_records()
@@ -191,14 +187,19 @@ def main():
 
         else:
             best_cand = agents[1].get_response(state)
+
+        # reset planner
+        planner.reset()
         
-        # get actual Agent 0 response
+        # --- GET TARGET RESPONSE ---
         state = state.add_message(best_cand)
         response = agents[0].get_response(state)
         _log(f"Agent 0 response:\n{response}\n")
 
         # setup new state for next turn
         state = state.add_message(response)
+
+        # --- SAVE RESULTS ---
 
         save_path = os.path.join(path, f"turn_{turn}.json")
         _log(f"Saving records to path ({save_path}) ... ({time.time()-t0:.3f})")
@@ -212,7 +213,7 @@ def main():
             # pickle.dump(full_record, f)
             json.dump(full_record, f)
 
-        if args.planning==1:
+        if args.planner != "off":
             save_path2 = os.path.join(path, f"turn_{turn}_root.pkl")
             with open(save_path2, "wb") as f:
                 pickle.dump(root, f)

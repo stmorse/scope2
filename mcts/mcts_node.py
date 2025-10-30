@@ -8,6 +8,8 @@ from typing import List, Tuple, Optional
 from dataclasses import dataclass
 from itertools import accumulate
 
+import numpy as np
+
 
 @dataclass
 class ConversationState:
@@ -232,3 +234,226 @@ class LeverNode(MCTSNode):
         )
 
 
+########
+
+class OLNode(MCTSNode):
+    """
+    Open-loop MCTS node
+    Represents:
+    - action lever a_t 
+    - (and implicitly the sequence a_{0:t-1} that led to it) captured thru parent
+    - persuader + target reply clusters
+    """
+
+    def __init__(self, lever: str, parent: None, p: float, depth: None):
+        self.lever = lever
+        self.parent = parent
+        self.depth = depth
+        self.p = p              # P(a|s) prob of this node from parent
+        self.children = []
+        
+        # global totals
+        self.visits = 0
+        self.total_reward = 0
+        self.q0 = 0.0   # prior on Q(a)
+
+        # for now we are forcing (K,M) = (2,3)
+        # TODO: make this dynamic
+        self.K = 2
+        self.M = 3
+
+        # stores text + clusters of persuader and targets
+        self.persuader_bank = ResponseBank(max_clusters=self.K)
+        self.target_bank = ResponseBank(max_clusters=self.M)
+
+        # returns matrix (W_{k->m}).  entry is total return for k->m
+        self.wkm = np.zeros((self.K, self.M))
+
+        # visits matrix (N_{k->m}).  entry is total visits to k->m
+        # dividing by totals gives empirical transition probs
+        self.nkm = np.zeros((self.K, self.M))
+
+    def is_leaf(self, branching_factor: int) -> bool:
+        """Check if this is a leaf node (i.e. not fully expanded)."""
+        return len(self.children) < branching_factor
+    
+    def is_terminal(self, max_depth: int) -> bool:
+        """Check if this is a terminal node (reached max depth)."""
+        return self.depth >= max_depth
+    
+    def get_q(self) -> float:
+        """Get Q(a) for this node."""
+        if self.visits == 0:
+            return self.q0
+        
+        wk = np.sum(self.wkm, axis=1)
+        nk = np.sum(self.nkm, axis=1)
+        qk = wk / nk
+        return np.argmax(qk)
+    
+    def uct_value(self, exploration_constant: float = math.sqrt(2)):
+        """
+        Calculate UCT (Upper Confidence Tree) value for this node.
+
+        Q(a) = max_k Q_k
+        P(a | s) = probability of coming to this node
+        N(s) = number of visits to parent
+        N(s,a) = number of visits to this node (the child)
+
+        UCT = Q(a) + c * P(a|s) * sqrt(N(s)) / (1 + N(s,a))
+
+        NOTE: since P(a|s) is uniform currently, we could drop and just
+        rescale exploration_constant
+        """
+
+        # TODO: check
+        if self.visits == 0:
+            return float('inf')  # Unvisited nodes have highest priority
+        
+        # if no parent, UCT reduces to Q(a)
+        if self.parent is None or self.parent.visits == 0:
+            return self.get_q()
+        
+        # construct UCT value
+        exploitation = self.get_q()
+        exploration = (
+            exploration_constant * 
+            self.p *
+            math.sqrt(self.parent.visits) /
+            (1 + self.visits)
+        )
+        
+        return exploitation + exploration
+    
+    def select_best_child(self, exploration_constant: float = math.sqrt(2)):
+        """Select child with highest UCT value."""
+        if not self.children:
+            raise ValueError("Cannot select child from node with no children")
+        
+        val = max(
+            self.children, 
+            key=lambda child: child.uct_value(exploration_constant)
+        )
+        return val
+    
+    def add_child(self, lever: str):
+        """Add a child node with the given action and state."""
+        child = OLNode(parent=self, lever=lever, p=self.p, depth=self.depth+1)
+        self.children.append(child)
+        return child
+    
+    def update(self, reward: float):
+        """Update node statistics with simulation result."""
+        self.visits += 1
+        self.total_reward += reward
+    
+    def backpropagate(self, reward: float):
+        """Backpropagate reward up the tree."""
+        self.update(reward)
+        if self.parent:
+            self.parent.backpropagate(reward)
+
+    def add_response_pair(self, persuader_response, target_response):
+        # add these to the bank of responses 
+        # (they will update clusters and return cluster index)
+        k = self.persuader_bank.add_response(persuader_response)
+        m = self.target_bank.add_response(target_response)
+
+        # update Q_{k->m} and visits
+        self.visits[k,m] += 1
+        self.qkm[k,m] = None #<-- TODO
+
+    def select_best_persuader_response(self, 
+            exploration_constant: float = math.sqrt(2),
+            new_arm_bonus: float = 0.1
+        ):
+        """
+        Return centroid response from persuader clusters using UCB
+
+        Q_k = expected return over all target clusters
+        S = total pulls of existing clusters at this node
+        N_k = visits to this cluster
+        \beta = bonus for going to a new arm
+        
+        k* = argmax_{k + new} Q_k + c * sqrt(ln S / (1 + N_k)) + \beta (if new)
+        """
+
+        wk = np.sum(self.wkm, axis=1)
+        nk = np.sum(self.nkm, axis=1)
+        
+        # figure out what next new cluster index will be (if any)
+        zero_idx = np.where(nk == 0)[0]
+        first_zero = int(zero_idx[0]) if zero_idx.size > 0 else None
+
+        # if we have no clusters, we can't condition on anything
+        if first_zero == 0:
+            return None
+        
+        # build list of UCB values
+        kvals = []
+        for i in range(first_zero):
+            kvals.append(
+                (wk[i] / nk[i]) +
+                exploration_constant *
+                np.sqrt(np.log(self.visits) / (1 + nk[i]))
+            )
+        
+        # if we are below capacity (K), add possibility of new arm
+        if first_zero is not None:
+            # add "new arm"
+            kvals.append(
+                self.q0 + 
+                exploration_constant * np.sqrt(np.log(self.visits)) + 
+                new_arm_bonus
+            )
+
+        # find selected index
+        kstar = np.argmax(kvals)
+
+        # if kstar is an existing cluster, return a centroid conditioning
+        if kstar < first_zero:
+            centroid = self.persuader_bank.get_centroid_response(kstar)
+        else:
+            centroid = None
+
+        return centroid
+
+
+class ResponseBank:
+    """
+    Holds all responses within an action node for either persuader/target,
+    and their cluster assignments.  Subclass for specific persuader/target behavior
+    """
+    def __init__(self, max_clusters=None, cluster_model=None, embed_model=None):
+        # raw texts
+        self.responses = []     
+        
+        # embedding
+        self.embed_model = embed_model
+        self.embeddings = []    
+        
+        # clustering
+        self.max_clusters = max_clusters
+        self.cluster_model = cluster_model
+        self.labels = []
+        
+    def add_response(self, response):
+        # add to raw texts
+        self.responses.append(response)
+
+        # find embeddings
+        embedding = self.embed_model.embed(response)
+        self.embeddings.append(embedding)
+
+        # -- update model --
+        # TODO:
+        # for now just add them all to one cluster
+        self.labels.append(0)
+
+    def get_centroid_response(self, k):
+        """Get representative response from cluster k"""
+
+        # TODO:
+        # for now just get first one
+        ix = np.where(self.labels == k)
+        return self.responses[ix[0]]

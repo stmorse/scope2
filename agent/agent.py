@@ -36,6 +36,7 @@ class Agent:
     def get_response(self, 
             state: ConversationState, 
             lever: Optional[str] = None,
+            conditioning: Optional[str] = None,
             **kwargs,
     ) -> str:
         """Given a conversation state, generate response using agent's client"""
@@ -63,6 +64,8 @@ class Agent:
                 agent_name=self.name,
                 history="\n".join(state.get_annotated_messages2(whoami=self.order)),
             )
+
+        # TODO: implement `conditioning`
 
         response = self.client.get_response(
             prompt, 
