@@ -77,10 +77,10 @@ class StructPlanner:
             # generate target response,
             # update clusters
             state = initial_state.get_deep_copy()
-            score = self._rollout(path, state)
+            rec = self._rollout(path, state)
 
             # -- BACKPROP --
-            expanded_node.backpropagate(score)
+            self._backprop(path, rec)
 
         # TODO:
         results = []
@@ -128,10 +128,13 @@ class StructPlanner:
     def _rollout(self, path, state):
         """Simulate a conversation along this path"""
 
+        # keep a record of (k, m, r_t) parallel to this path
+        rec = []
+
         # iterate down this path of actions
         for node in path:
             # pick persuader cluster centroid (possibly none)
-            persuader_centroid = node.select_best_persuader_response()
+            persuader_centroid, _ = node.select_best_persuader_response()
 
             # generate a new response
             # if persuader_centroid=None, get_response ignores it
@@ -144,14 +147,20 @@ class StructPlanner:
             target_response = self.agents[0].get_response(state)
             state.add_message(target_response)
 
-            # add this pair to the node
-            # it will update clusters / rewards
-            node.add_response_pair(persuader_response, target_response)
+            # add this pair to the node and get its cluster assignments and score
+            k, m, r = node.add_response_pair(persuader_response, target_response)
 
-        # score this specific conversation
-        score = self.reward_function(state)
+            # update record
+            rec.append((k, m, r))
 
-        return score
+        return rec
+    
+    def _backprop(self, path, rec):
+        """Backprop rewards from rec (k, m, r_t) through path"""
+
+        G = 0.0
+        for node, (k, m, rt) in zip(reversed(path), reversed(rec)):
+            pass
 
     
     # ---------------

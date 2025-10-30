@@ -263,7 +263,7 @@ class OLNode(MCTSNode):
         self.M = 3
 
         # stores text + clusters of persuader and targets
-        self.persuader_bank = ResponseBank(max_clusters=self.K)
+        self.persuader_bank = ResponseBank(max_clusters=self.K, )
         self.target_bank = ResponseBank(max_clusters=self.M)
 
         # returns matrix (W_{k->m}).  entry is total return for k->m
@@ -355,13 +355,16 @@ class OLNode(MCTSNode):
 
     def add_response_pair(self, persuader_response, target_response):
         # add these to the bank of responses 
-        # (they will update clusters and return cluster index)
-        k = self.persuader_bank.add_response(persuader_response)
-        m = self.target_bank.add_response(target_response)
+        # (they will update clusters and return cluster index and score)
+        k, _ = self.persuader_bank.add_response(persuader_response)
+        m, r = self.target_bank.add_response(target_response)
 
         # update Q_{k->m} and visits
-        self.visits[k,m] += 1
-        self.qkm[k,m] = None #<-- TODO
+        # self.visits[k,m] += 1
+        # self.qkm[k,m] = None #<-- TODO
+        # ^^^^ think we need to do this separately
+
+        return k, m, r
 
     def select_best_persuader_response(self, 
             exploration_constant: float = math.sqrt(2),
@@ -416,7 +419,7 @@ class OLNode(MCTSNode):
         else:
             centroid = None
 
-        return centroid
+        return centroid, kstar
 
 
 class ResponseBank:
