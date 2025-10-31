@@ -19,7 +19,7 @@ class ConversationState:
     
     @property
     def depth(self) -> int:
-        return len(self.messages) // 2    # this is a bit rough
+        return len(self.messages) // 2   #<-- this is a bit rough
     
     @property
     def current_turn(self) -> int:
@@ -35,7 +35,7 @@ class ConversationState:
         # agent=0 --> depth even, go back two, depth odd, get last
         # agent=1 --> depth even, get last, depth odd, go back two
         
-        if self.depth < 2 and agent == 1:
+        if len(self.messages) < 2 and agent == 1:
             raise ValueError(f"Agent {self.agents[agent]} hasn't spoken yet.")
         
         last_is_1 = (len(self.messages) % 2 == 0)
@@ -236,7 +236,7 @@ class LeverNode(MCTSNode):
 
 ########
 
-class OLNode(MCTSNode):
+class OLNode:
     """
     Open-loop MCTS node
     Represents:
@@ -245,7 +245,8 @@ class OLNode(MCTSNode):
     - persuader + target reply clusters
     """
 
-    def __init__(self, lever: str, parent: None, p: float, depth: None):
+    def __init__(self, lever: str, parent: None, p: float, depth: None,
+                 persuader_reward: None, target_reward: None):
         self.lever = lever
         self.parent = parent
         self.depth = depth
@@ -263,8 +264,10 @@ class OLNode(MCTSNode):
         self.M = 3
 
         # stores text + clusters of persuader and targets
-        self.persuader_bank = ResponseBank(max_clusters=self.K, )
-        self.target_bank = ResponseBank(max_clusters=self.M)
+        self.persuader_bank = ResponseBank(
+            agent=1, max_clusters=self.K, reward_model=persuader_reward)
+        self.target_bank = ResponseBank(
+            agent=0, max_clusters=self.M, reward_model=target_reward)
 
         # returns matrix (W_{k->m}).  entry is total return for k->m
         self.wkm = np.zeros((self.K, self.M))
@@ -337,15 +340,25 @@ class OLNode(MCTSNode):
         return val
     
     def add_child(self, lever: str):
-        """Add a child node with the given action and state."""
-        child = OLNode(parent=self, lever=lever, p=self.p, depth=self.depth+1)
+        """Add a child node."""
+        child = OLNode(
+            parent=self, lever=lever, p=self.p, depth=self.depth+1,
+            persuader_reward=self.persuader_bank.reward_model,
+            target_reward=self.target_bank.reward_model
+        )
         self.children.append(child)
         return child
     
-    def update(self, reward: float):
-        """Update node statistics with simulation result."""
+    def update(self, k, m, G):
+        """Update node statistics for a (persuader, target) pair."""
+
+        # update global counts
         self.visits += 1
-        self.total_reward += reward
+        self.total_reward += G
+
+        # update for this k->m pair
+        self.nkm[k, m] += 1
+        self.wkm[k, m] += G
     
     def backpropagate(self, reward: float):
         """Backpropagate reward up the tree."""
@@ -353,18 +366,32 @@ class OLNode(MCTSNode):
         if self.parent:
             self.parent.backpropagate(reward)
 
-    def add_response_pair(self, persuader_response, target_response):
-        # add these to the bank of responses 
+    def add_response_pair(self, state):
+        # add last two messages in state to the bank of responses 
         # (they will update clusters and return cluster index and score)
-        k, _ = self.persuader_bank.add_response(persuader_response)
-        m, r = self.target_bank.add_response(target_response)
+        print(f"adding response pair for state: {state.messages}")
 
-        # update Q_{k->m} and visits
-        # self.visits[k,m] += 1
-        # self.qkm[k,m] = None #<-- TODO
-        # ^^^^ think we need to do this separately
+        k, _ = self.persuader_bank.add_response(state)
+        m, r = self.target_bank.add_response(state)
 
         return k, m, r
+
+    def get_best_persuader_candidate(self):
+        """Get centroid of k = argmax_k Q_k"""
+
+        wk = np.sum(self.wkm, axis=1)
+        nk = np.sum(self.nkm, axis=1)
+
+        # handle zero visit cases
+        nk[np.where(nk == 0)] = -1000000
+
+        kstar = np.argmax(wk / nk)
+
+        print(f"get_best--  wk {wk} nk {nk} kstar {kstar}")
+
+        centroid = self.persuader_bank.get_centroid_response(kstar)
+
+        return centroid
 
     def select_best_persuader_response(self, 
             exploration_constant: float = math.sqrt(2),
@@ -390,7 +417,7 @@ class OLNode(MCTSNode):
 
         # if we have no clusters, we can't condition on anything
         if first_zero == 0:
-            return None
+            return None, None
         
         # build list of UCB values
         kvals = []
@@ -413,11 +440,15 @@ class OLNode(MCTSNode):
         # find selected index
         kstar = np.argmax(kvals)
 
+        print(f"kvals: {kvals}")
+
         # if kstar is an existing cluster, return a centroid conditioning
         if kstar < first_zero:
             centroid = self.persuader_bank.get_centroid_response(kstar)
         else:
             centroid = None
+
+        print(f"centroid: {centroid} kstar: {kstar}")
 
         return centroid, kstar
 
@@ -427,12 +458,15 @@ class ResponseBank:
     Holds all responses within an action node for either persuader/target,
     and their cluster assignments.  Subclass for specific persuader/target behavior
     """
-    def __init__(self, max_clusters=None, cluster_model=None, embed_model=None):
+    def __init__(self, agent: None, max_clusters=None, cluster_model=None, reward_model=None):
+        # specify persuader / target
+        self.agent = agent
+        
         # raw texts
         self.responses = []     
         
-        # embedding
-        self.embed_model = embed_model
+        # embedding / reward
+        self.reward_model = reward_model
         self.embeddings = []    
         
         # clustering
@@ -440,23 +474,32 @@ class ResponseBank:
         self.cluster_model = cluster_model
         self.labels = []
         
-    def add_response(self, response):
+    def add_response(self, state):
+        response = state.get_last_message(agent=self.agent)
+        
         # add to raw texts
         self.responses.append(response)
 
         # find embeddings
-        embedding = self.embed_model.embed(response)
+        embedding, score = self.reward_model.embed_and_score(state)
         self.embeddings.append(embedding)
 
         # -- update model --
         # TODO:
         # for now just add them all to one cluster
-        self.labels.append(0)
+        cluster = 0
+        self.labels.append(cluster)
+
+        return cluster, score
 
     def get_centroid_response(self, k):
         """Get representative response from cluster k"""
 
+        print(f"All responses {self.responses}")
+        print(f"All labels: {self.labels}")
+
         # TODO:
         # for now just get first one
-        ix = np.where(self.labels == k)
-        return self.responses[ix[0]]
+        ix = np.where(self.labels == k)[0]
+        x = int(ix[0])
+        return self.responses[x]

@@ -15,9 +15,6 @@ import torch
 import torch.nn.functional as F
 
 
-DEFAULT_TOPIC_SENTENCE = "The Python programming language is not strongly typed."
-DEFAULT_NLI_HYPOTHESIS = "I like Colgate toothpaste."
-
 DEFAULT_NLI_MODEL = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli"
 DEFAULT_SENTENCE_EMBEDDER = "all-MiniLM-L6-v2"
 DEFAULT_SAFETY_MODEL = "meta-llama/LlamaGuard-7b"
@@ -43,19 +40,64 @@ class NLIReward(RewardFunction):
 
     def __init__(self, 
             model_name: str=DEFAULT_NLI_MODEL, 
-            hypothesis: str=DEFAULT_NLI_HYPOTHESIS
+            hypothesis: str=None
         ):
         self.model_name = model_name
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
-        self.model = self.model.to(device)
+        self.model = self.model.to(self.device)
         self.hypothesis = hypothesis
 
-        print(f"NLIReward initialized: \"{self.hypothesis}\"")
+        if hypothesis is None:
+            print("Warning: no hypothesis specified.")
 
     def set_hypothesis(self, hypothesis: str):
         self.hypothesis = hypothesis
-        print(f"NLIReward new hypothesis: {self.hypothesis}")
+
+    def embed_and_score_single(self, premise):
+        """
+        Compute embedding and score for a single agent utterance
+        Score = logit_entail - logit_contradict
+        """
+        
+        inputs = self.tokenizer(
+            premise, self.hypothesis, 
+            truncation=True, return_tensors="pt"
+        )
+
+        # Move inputs to same device as model
+        inputs = {k: v.to(self.device) for k, v in inputs.items()}
+
+        # get embedding and logits
+        with torch.no_grad():
+            enc = self.model.deberta(**inputs)                    # base encoder
+            pooled = self.model.pooler(enc.last_hidden_state)     # [1, hidden_size]
+            features = self.model.dropout(pooled)                 # pre-classifier embedding
+            logits = self.model.classifier(features)              # NLI logits (E/C/N)
+
+        # features is the pair-specific embedding used for the decision
+        embedding = features.squeeze(0).cpu()  # shape [hidden_size], here 1024
+        # probs  = logits.softmax(dim=-1).squeeze(0).cpu()
+        logits = logits.squeeze(0).cpu()
+        score = logits[2] - logits[1]
+
+        return embedding, score
+    
+    def embed_and_score(self, state, agent=0):
+        """
+        Compute embedding (for final agent utterance) and score (aggregated)
+        """
+
+        # TODO: include \ell_0 (persona)
+
+        total_score = 0
+        for utterance in state.get_messages_from_agent(agent):
+            embedding, score = self.embed_and_score_single(utterance)
+            total_score += score
+
+        # returns final embedding
+        return embedding, total_score
 
     def calculate_reward(self, state, ):
         # for now just get the last message of Agent 0
@@ -73,6 +115,52 @@ class NLIReward(RewardFunction):
         print(f"[DEBUG] {[f"{name}: {pred:.3f}" for name, pred in prediction.items()]}")
         # return prediction["entailment"]
         return prediction["entailment"] - prediction["contradiction"]
+
+
+
+class TopicReward(RewardFunction):
+    def __init__(self,
+            model_name: str=DEFAULT_SENTENCE_EMBEDDER,
+            topic_sentence: str=None,
+        ):
+        self.model_name = model_name
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        self.model = SentenceTransformer(self.model_name, device=self.device)
+        self.topic_sentence = topic_sentence
+
+        if topic_sentence is None:
+            print("Warning: no topic sentence specified, using placeholder.")
+            topic_sentence = "(None specified)"
+
+        # embed the topic sentence
+        self.centroid = self.model.encode(self.topic_sentence)
+
+    def set_topic(self, topic: str):
+        self.topic_sentence = topic
+        self.centroid = self.model.encode(self.topic_sentence)
+        print(f"TopicReward new topic: \"{self.topic_sentence}\"")
+
+    def embed_and_score(self, state, agent=1):
+        """Currently just embeds last utterance from agent"""
+        text = state.get_last_message(agent=agent)
+        embedding = self.model.encode(text)
+        score = self.model.similarity(embedding, self.centroid)
+        return embedding, score[0][0]
+
+    def calculate_reward(self, state):
+        """Simple reward based on similarity to topic sentence"""
+        
+        # grab just the end of the conversation
+        # text = "\n".join(state.messages)
+        # text = text[-min(len(text), 1000):]
+
+        # grab last message by target agent
+        text = state.get_last_message(agent=0)
+
+        # compute cosine similarity
+        text_embed = self.model.encode(text)
+        score = self.model.similarity(text_embed, self.centroid)
+        return score[0][0]
 
 
 class SentimentReward(RewardFunction):
@@ -93,47 +181,7 @@ class SentimentReward(RewardFunction):
             if d['label'] == 'positive': 
                 return d["score"]
         raise ValueError("Could not find a positive sentiment score.")
-        
-
-
-class TopicReward(RewardFunction):
-    """
-    Reward function that uses SentenceTransformers to score conversation
-    proximity to a specified sentence embedding
-    """
-
-    def __init__(self,
-            model_name: str=DEFAULT_SENTENCE_EMBEDDER,
-            topic_sentence: str=None,
-        ):
-        self.model_name = model_name
-        self.model = SentenceTransformer(self.model_name)
-        self.topic_sentence = topic_sentence or DEFAULT_TOPIC_SENTENCE
-
-        # embed the topic sentence
-        self.centroid = self.model.encode(self.topic_sentence)
-        print(f"TopicReward initialized: \"{self.topic_sentence}\"")
-
-    def set_topic(self, topic: str):
-        self.topic_sentence = topic
-        self.centroid = self.model.encode(self.topic_sentence)
-        print(f"TopicReward new topic: \"{self.topic_sentence}\"")
-
-    def calculate_reward(self, state):
-        """Simple reward based on similarity to topic sentence"""
-        
-        # grab just the end of the conversation
-        # text = "\n".join(state.messages)
-        # text = text[-min(len(text), 1000):]
-
-        # grab last message by target agent
-        text = state.get_last_message(agent=0)
-
-        # compute cosine similarity
-        text_embed = self.model.encode(text)
-        score = self.model.similarity(text_embed, self.centroid)
-        return score[0][0]
-
+    
 
 class SafetyReward(RewardFunction):
     """

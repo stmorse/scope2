@@ -19,33 +19,49 @@ import random
 from typing import List, Tuple
 
 from .mcts_node import OLNode, ConversationState
-from .reward_functions import RewardFunction
+from .reward_functions import RewardFunction, NLIReward, TopicReward
 
 
 class StructPlanner:
      
     def __init__(self, 
             agents: dict = None,
-            reward_function: RewardFunction = None,
+            persuader_reward: RewardFunction = None,
+            target_reward: RewardFunction = None,
             max_depth: int = 3,
             branching_factor: int = 3,
             generations_per_node: int = 5,
             num_simulations: int = 5,
             exploration_constant: float = 1.414,
+            decay: float = 0.9,
             levers: List[str] = None,
             logger: Logger = None,
         ):
         self.agents = agents
-        self.reward_function = reward_function
+
+        # rewards / embedders
+        self.persuader_reward = persuader_reward
+        self.target_reward = target_reward
+
+        # tree hyperparams
         self.max_depth = max_depth
         self.branching_factor = branching_factor
         self.generations_per_node = generations_per_node
         self.num_simulations = num_simulations
         self.exploration_constant = exploration_constant
+        self.decay = decay  # reward decay
         self.levers = levers
+        
+        # logging
         self.logger = logger
 
         # will store records of all sims
+        self.records = {}
+
+    def get_records(self):
+        return self.records
+
+    def reset(self):
         self.records = {}
 
     def plan_conversation(self, initial_state: ConversationState):
@@ -57,18 +73,23 @@ class StructPlanner:
         self._log(f"\nStarting conversation planning:")
         self._log(f"{"\n\n".join(initial_state.get_annotated_messages())}\n")
 
-        root = OLNode(parent=None, lever=None, p=1./len(self.levers), depth=0)
+        root = OLNode(
+            parent=None, lever=None, p=1./len(self.levers), depth=0,
+            persuader_reward=self.persuader_reward,
+            target_reward=self.target_reward
+        )
 
         for i in range(self.num_simulations):
+            self._log(f"\nSIMULATION {i+1} / {self.num_simulations}\n")
 
             # -- SELECTION ---
             # traverse tree to terminal/leaf using selection criteria
-            current, path = self._select(root)
+            path = self._select(root)
 
             # -- EXPANSION ---
             # if terminal: _expand returns `current`
             # else (leaf): _expand returns a new child
-            expanded_node = self._expand(current)
+            expanded_node = self._expand(path[-1])
             path.append(expanded_node)
 
             # -- ROLLOUT ---
@@ -82,14 +103,15 @@ class StructPlanner:
             # -- BACKPROP --
             self._backprop(path, rec)
 
-        # TODO:
         results = []
         for child in root.children:
             results.append((
-                child.get_best_candidate(),
-                child.get_reward(),
+                child.get_best_persuader_candidate(),
+                child.get_q(),
                 child.lever,
             ))
+
+        return results, root
 
     def _select(self, node):
         """Select path through tree using policy"""
@@ -105,8 +127,8 @@ class StructPlanner:
             node = node.select_best_child(self.exploration_constant)
             path.append(node)
 
-        # node is either a leaf (not fully expanded) or terminal    
-        return node, path
+        # final node is either a leaf (not fully expanded) or terminal    
+        return path
 
     def _expand(self, node):
         """Expand node by selecting an un-tried lever"""
@@ -133,6 +155,8 @@ class StructPlanner:
 
         # iterate down this path of actions
         for node in path:
+            print(f"node nkm: {node.nkm}")
+
             # pick persuader cluster centroid (possibly none)
             persuader_centroid, _ = node.select_best_persuader_response()
 
@@ -141,26 +165,31 @@ class StructPlanner:
             persuader_response = self.agents[1].get_response(
                 state, lever=node.lever, conditioning=persuader_centroid
             )
-            state.add_message(persuader_response)
+            state = state.add_message(persuader_response)
 
             # get target reply
             target_response = self.agents[0].get_response(state)
-            state.add_message(target_response)
+            state = state.add_message(target_response)
 
             # add this pair to the node and get its cluster assignments and score
-            k, m, r = node.add_response_pair(persuader_response, target_response)
+            k, m, r = node.add_response_pair(state)
 
             # update record
             rec.append((k, m, r))
 
+        # this list runs t=0,...,T-1
         return rec
     
     def _backprop(self, path, rec):
         """Backprop rewards from rec (k, m, r_t) through path"""
-
         G = 0.0
         for node, (k, m, rt) in zip(reversed(path), reversed(rec)):
-            pass
+            # NOTE:
+            # at last node (T-1), this gives G=r_{T-1}
+            # at second to last, we have G=r_{T-2}+decay*r_{T-1} ...
+            # at t, we have G_t = \sum_{u=t}^{T-1} decay^{u-t} r_t
+            G = rt + self.decay * G
+            node.update(k, m, G)
 
     
     # ---------------

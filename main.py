@@ -141,7 +141,8 @@ def main():
     if args.planner == "col":
         planner = StructPlanner(
             agents=agents,
-            reward_function=reward_function,
+            persuader_reward=TopicReward(topic_sentence=scenario["base"]),
+            target_reward=reward_function,
             max_depth=init["depth"],
             branching_factor=len(levers),
             generations_per_node=5,
@@ -204,8 +205,8 @@ def main():
         save_path = os.path.join(path, f"turn_{turn}.json")
         _log(f"Saving records to path ({save_path}) ... ({time.time()-t0:.3f})")
         full_record = {
-            "records": records if args.planning==1 else "",
-            "results": results if args.planning==1 else "",
+            "records": records if args.planner!="off" else "",
+            "results": results if args.planner!="off" else "",
             "response": response,
             "state": state.messages.copy()
         }
@@ -213,7 +214,7 @@ def main():
             # pickle.dump(full_record, f)
             json.dump(full_record, f)
 
-        if args.planner != "off":
+        if args.planning != "off":
             save_path2 = os.path.join(path, f"turn_{turn}_root.pkl")
             with open(save_path2, "wb") as f:
                 pickle.dump(root, f)
