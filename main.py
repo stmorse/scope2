@@ -178,7 +178,7 @@ def main():
             
             _log(f"\nResults (ranked by score):")
             results.sort(key=lambda x: x[1], reverse=True)
-            for i, (candidate, score, lever) in enumerate(results, 1):
+            for i, (candidate, score, lever) in enumerate(results):
                 _log(f"\nRank {i} (Score: {score:.4f}) (Lever: {lever})")
                 _log(f"{candidate}\n")
                 
@@ -202,6 +202,9 @@ def main():
 
         # --- SAVE RESULTS ---
 
+        # print(records)
+        print(results)
+
         save_path = os.path.join(path, f"turn_{turn}.json")
         _log(f"Saving records to path ({save_path}) ... ({time.time()-t0:.3f})")
         full_record = {
@@ -214,7 +217,7 @@ def main():
             # pickle.dump(full_record, f)
             json.dump(full_record, f)
 
-        if args.planning != "off":
+        if args.planner != "off":
             save_path2 = os.path.join(path, f"turn_{turn}_root.pkl")
             with open(save_path2, "wb") as f:
                 pickle.dump(root, f)

@@ -33,14 +33,23 @@ INTERVIEW = (
     "You are having a conversation with another person, named {counterpart}. "
     "Here is a transcript of the dialogue so far:"
     "\n\n{history}\n\n"
+    
     "How likely are you "
     "to agree with the following statement: "
     "{hypothesis}\n\n"
-    "Give your answer as an integer between 1 and 10. "
-    "1 represents explicit contradiction. 2-3 represent mostly denial "
-    "but with the possibility of agreement. 4-6 represent mixed or neutral opinions. "
-    "7-8 represents support, possibly with some nuanced misgivings. 9-10 "
-    "represent explicit endorsement. "
+    
+    "Give your answer as an integer between 1 and 9, following this rubric: "
+    
+    "1 = strongly disagree\n"
+    "2 = disagree\n"
+    "3 = mostly disagree\n"
+    "4 = slightly disagree\n"
+    "5 = neutral\n"
+    "6 = slightly agree\n"
+    "7 = mostly agree\n"
+    "8 = agree\n"
+    "9 = strongly agree\n"
+    
     "Ensure your rating faithfully represents your utterances in the dialogue. "
     "Provide your response as a single integer, nothing else."
 )

@@ -92,22 +92,32 @@ class StructPlanner:
             expanded_node = self._expand(path[-1])
             path.append(expanded_node)
 
+            self._log(f"Select/Expand path:")
+            self._log(f"{'\n'.join([str(p) for p in path])}")
+
             # -- ROLLOUT ---
             # simulate a conversation along this path. at each edge:
             # select persuader cluster-conditioning and generate,
             # generate target response,
             # update clusters
             state = initial_state.get_deep_copy()
-            rec = self._rollout(path, state)
+            rec, state = self._rollout(path, state)
 
             # -- BACKPROP --
             self._backprop(path, rec)
 
+            self.records[f"sim_{i}"] = {
+                "path": [str(p) for p in path],
+                "messages": [m for m in state.messages],
+                "score": [float(val) for _, _, val in rec],
+            }
+
         results = []
         for child in root.children:
+            kstar, qstar = child.get_q()
             results.append((
                 child.get_best_persuader_candidate(),
-                child.get_q(),
+                float(qstar),
                 child.lever,
             ))
 
@@ -136,11 +146,13 @@ class StructPlanner:
         # first figure out what levers exist among children of `node`
         existing_levers = [child.lever for child in node.children]
 
-        self._log(f"> Existing levers in children: {existing_levers}")
+        self._log(f"Existing levers in children: {existing_levers}")
 
         # select a new lever randomly from remaining
         remaining_levers = set(self.levers) - set(existing_levers)
         lever = random.choice(list(remaining_levers))
+
+        self._log(f"Expanding with lever: {lever}")
 
         # construct the new child node
         child = node.add_child(lever=lever)
@@ -150,15 +162,19 @@ class StructPlanner:
     def _rollout(self, path, state):
         """Simulate a conversation along this path"""
 
+        self._log("\nRollout...\n")
+
         # keep a record of (k, m, r_t) parallel to this path
         rec = []
 
         # iterate down this path of actions
         for node in path:
-            print(f"node nkm: {node.nkm}")
+            print(f"node nkm:\n{node.nkm}")
 
             # pick persuader cluster centroid (possibly none)
             persuader_centroid, _ = node.select_best_persuader_response()
+
+            self._log(f"Conditioning on: {persuader_centroid}")
 
             # generate a new response
             # if persuader_centroid=None, get_response ignores it
@@ -174,11 +190,14 @@ class StructPlanner:
             # add this pair to the node and get its cluster assignments and score
             k, m, r = node.add_response_pair(state)
 
+            self._log(f"Response pair:\n{persuader_response}\n{target_response}")
+            self._log(f"rec: {(k, m, r)}")
+
             # update record
             rec.append((k, m, r))
 
         # this list runs t=0,...,T-1
-        return rec
+        return rec, state
     
     def _backprop(self, path, rec):
         """Backprop rewards from rec (k, m, r_t) through path"""

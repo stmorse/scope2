@@ -283,16 +283,29 @@ class OLNode:
     def is_terminal(self, max_depth: int) -> bool:
         """Check if this is a terminal node (reached max depth)."""
         return self.depth >= max_depth
-    
-    def get_q(self) -> float:
-        """Get Q(a) for this node."""
+
+    def get_a_and_q(self):
+        """Get a*, Q(a*) for this node."""
         if self.visits == 0:
             return self.q0
         
         wk = np.sum(self.wkm, axis=1)
         nk = np.sum(self.nkm, axis=1)
+
+        # handle zero visit cases
+        nk[np.where(nk == 0)] = -1000000
+
         qk = wk / nk
-        return np.argmax(qk)
+
+        kstar = np.argmax(qk)
+        qstar = qk[kstar]
+
+        print(f"[DEBUG] GET Q:  wk {wk} nk {nk} kstar {kstar} qstar {qstar}")
+
+        return kstar, qstar
+    
+    def get_q(self):
+        return self.get_a_and_q()[1]
     
     def uct_value(self, exploration_constant: float = math.sqrt(2)):
         """
@@ -379,18 +392,8 @@ class OLNode:
     def get_best_persuader_candidate(self):
         """Get centroid of k = argmax_k Q_k"""
 
-        wk = np.sum(self.wkm, axis=1)
-        nk = np.sum(self.nkm, axis=1)
-
-        # handle zero visit cases
-        nk[np.where(nk == 0)] = -1000000
-
-        kstar = np.argmax(wk / nk)
-
-        print(f"get_best--  wk {wk} nk {nk} kstar {kstar}")
-
+        kstar, _ = self.get_q()
         centroid = self.persuader_bank.get_centroid_response(kstar)
-
         return centroid
 
     def select_best_persuader_response(self, 
@@ -451,6 +454,15 @@ class OLNode:
         print(f"centroid: {centroid} kstar: {kstar}")
 
         return centroid, kstar
+    
+    def __repr__(self):
+        return (
+            f"OLNode(depth={self.depth}, visits={self.visits}, "
+            f"total_reward={self.total_reward}, "
+            f"q={self.get_q()[1]:.3f}, "
+            f"children={len(self.children)} "
+            f"lever={self.lever})"
+        )
 
 
 class ResponseBank:
