@@ -287,7 +287,7 @@ class OLNode:
     def get_a_and_q(self):
         """Get a*, Q(a*) for this node."""
         if self.visits == 0:
-            return self.q0
+            return None, self.q0
         
         wk = np.sum(self.wkm, axis=1)
         nk = np.sum(self.nkm, axis=1)
@@ -305,7 +305,8 @@ class OLNode:
         return kstar, qstar
     
     def get_q(self):
-        return self.get_a_and_q()[1]
+        _, q = self.get_a_and_q()
+        return q
     
     def uct_value(self, exploration_constant: float = math.sqrt(2)):
         """
@@ -392,7 +393,7 @@ class OLNode:
     def get_best_persuader_candidate(self):
         """Get centroid of k = argmax_k Q_k"""
 
-        kstar, _ = self.get_q()
+        kstar, _ = self.get_a_and_q()
         centroid = self.persuader_bank.get_centroid_response(kstar)
         return centroid
 
@@ -459,7 +460,7 @@ class OLNode:
         return (
             f"OLNode(depth={self.depth}, visits={self.visits}, "
             f"total_reward={self.total_reward}, "
-            f"q={self.get_q()[1]:.3f}, "
+            f"q={self.get_q():.3f}, "
             f"children={len(self.children)} "
             f"lever={self.lever})"
         )

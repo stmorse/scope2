@@ -114,10 +114,9 @@ class StructPlanner:
 
         results = []
         for child in root.children:
-            kstar, qstar = child.get_q()
             results.append((
                 child.get_best_persuader_candidate(),
-                float(qstar),
+                float(child.get_q()),
                 child.lever,
             ))
 
