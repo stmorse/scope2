@@ -80,7 +80,9 @@ class StructPlanner:
         )
 
         for i in range(self.num_simulations):
-            self._log(f"\nSIMULATION {i+1} / {self.num_simulations}\n")
+            self._log(f"\n{'='*40}")
+            self._log(f"SIMULATION {i+1} / {self.num_simulations}")
+            self._log(f"{'='*40}\n")
 
             # -- SELECTION ---
             # traverse tree to terminal/leaf using selection criteria
@@ -101,13 +103,13 @@ class StructPlanner:
             # generate target response,
             # update clusters
             state = initial_state.get_deep_copy()
-            rec, state = self._rollout(path, state)
+            rec, state = self._rollout(path[1:], state)
 
             # -- BACKPROP --
-            self._backprop(path, rec)
+            self._backprop(path[1:], rec)
 
             self.records[f"sim_{i}"] = {
-                "path": [str(p) for p in path],
+                "path": [str(p) for p in path[1:]],
                 "messages": [m for m in state.messages],
                 "score": [float(val) for _, _, val in rec],
             }
@@ -116,7 +118,7 @@ class StructPlanner:
         for child in root.children:
             results.append((
                 child.get_best_persuader_candidate(),
-                float(child.get_q()),
+                child.get_q(),
                 child.lever,
             ))
 
@@ -175,7 +177,7 @@ class StructPlanner:
 
         # iterate down this path of actions
         for node in path:
-            print(f"node nkm:\n{node.nkm}")
+            print(f"Node: {str(node)}")
 
             # pick persuader cluster centroid (possibly none)
             persuader_centroid, _ = node.select_best_persuader_response()
@@ -199,6 +201,7 @@ class StructPlanner:
 
             self._log(f"Response pair:\n{persuader_response}\n{target_response}")
             self._log(f"rec: {(k, m, r)}")
+            print("\n======\n")
 
             # update record
             rec.append((k, m, r))
@@ -209,14 +212,23 @@ class StructPlanner:
     
     def _backprop(self, path, rec):
         """Backprop rewards from rec (k, m, r_t) through path"""
+
+        print("Backprop ...\n")
         G = 0.0
         for node, (k, m, r) in zip(reversed(path), reversed(rec)):
+            
+            
             # NOTE:
             # at last node (T-1), this gives G=r_{T-1}
             # at second to last, we have G=r_{T-2}+decay*r_{T-1} ...
             # at t, we have G_t = \sum_{u=t}^{T-1} decay^{u-t} r_t
             G = r + self.decay * G
             node.update(k, m, G)
+
+            print("After update:")
+            print(f"Node: {str(node)}")
+            print(f"nkm:\n{node.nkm}")
+            print(f"wkm:\n{node.wkm}\n")
 
     
     # ---------------

@@ -307,7 +307,7 @@ class OLNode:
         kstar = int(np.argmax(qk))
         qstar = float(qk[kstar])
 
-        print(f"[DEBUG] GET Q:  wk {wk} nk {nk} kstar {kstar} qstar {qstar}")
+        # print(f"[DEBUG] GET Q:  wk {wk} nk {nk} kstar {kstar} qstar {qstar}")
 
         return kstar, qstar
     
@@ -388,7 +388,6 @@ class OLNode:
     def add_response_pair(self, state):
         # add last two messages in state to the bank of responses 
         # (they will update clusters and return cluster index and score)
-        print(f"adding response pair for state: {state.messages}")
 
         k, _ = self.persuader_bank.add_response(state)
         m, L = self.target_bank.add_response(state)
@@ -514,11 +513,17 @@ class ResponseBank:
     def get_centroid_response(self, k):
         """Get representative response from cluster k"""
 
-        print(f"All responses {self.responses}")
-        print(f"All labels: {self.labels}")
+        # print(f"All responses {self.responses}")
+        # print(f"All labels: {self.labels}")
 
         # TODO:
         # for now just get first one
-        ix = np.where(self.labels == k)[0]
-        x = int(ix[0])
-        return self.responses[x]
+        
+        # find first index with matching label in a numpy-agnostic way
+        # np.where wasn't working well
+        try:
+            idx = next(i for i, lbl in enumerate(self.labels) if lbl == k)
+        except StopIteration:
+            raise ValueError(f"No responses for cluster {k}")
+        
+        return self.responses[idx]

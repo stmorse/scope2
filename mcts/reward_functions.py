@@ -79,7 +79,7 @@ class NLIReward(RewardFunction):
         embedding = features.squeeze(0).cpu()  # shape [hidden_size], here 1024
         # probs  = logits.softmax(dim=-1).squeeze(0).cpu()
         logits = logits.squeeze(0).cpu()
-        score = logits[2] - logits[1]
+        score = logits[0] - logits[2]
 
         return embedding, score
     
