@@ -1,11 +1,14 @@
 """
 Agent wrapping an LLM backend
 """
+
+import re
 from typing import Optional
 
 from .llm_client import LLMClient
 from . import prompts
 from mcts.mcts_node import ConversationState
+
 
 class Agent:
     def __init__(self, 
@@ -110,7 +113,15 @@ class Agent:
         try:
             res = int(response)
         except Exception as e:
-            print(f"Error parsing interview response: {response} ({e})")
+            match = re.search(r'[-+]?\d+', response)
+            if match:
+                try:
+                    res = int(match.group())
+                except Exception:
+                    res = -1
+            else:
+                res = -1
+            print(f"Error parsing interview response: {response}. Returning {res}")
         
         return res
 

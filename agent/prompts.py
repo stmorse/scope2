@@ -34,24 +34,25 @@ INTERVIEW = (
     "Here is a transcript of the dialogue so far:"
     "\n\n{history}\n\n"
     
-    "How likely are you "
-    "to agree with the following statement: "
+    "Considering your utterances in this conversation, "
+    "to what extent does their language support the following hypothesis: "
     "{hypothesis}\n\n"
     
     "Give your answer as an integer between 1 and 9, following this rubric: "
     
-    "1 = strongly disagree\n"
-    "2 = disagree\n"
-    "3 = mostly disagree\n"
-    "4 = slightly disagree\n"
+    "1 = strong contradiction\n"
+    "2 = contradiction\n"
+    "3 = mostly contradicting\n"
+    "4 = slightly contradicting\n"
     "5 = neutral\n"
-    "6 = slightly agree\n"
-    "7 = mostly agree\n"
-    "8 = agree\n"
-    "9 = strongly agree\n"
+    "6 = slight support\n"
+    "7 = mostly support\n"
+    "8 = supports\n"
+    "9 = strongly supports\n"
     
     "Ensure your rating faithfully represents your utterances in the dialogue. "
-    "Provide your response as a single integer, nothing else."
+    "Provide your response as a single integer. "
+    "DO NOT provide any other commentary, only your response as a single integer."
 )
 
 INTERVIEW_SUMMARY = (
