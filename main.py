@@ -175,6 +175,9 @@ def main():
 
             results, root = planner.plan_conversation(state)
             records = planner.get_records()
+
+            # reset planner
+            planner.reset()
             
             _log(f"\nResults (ranked by score):")
             results.sort(key=lambda x: x[1], reverse=True)
@@ -189,8 +192,6 @@ def main():
         else:
             best_cand = agents[1].get_response(state)
 
-        # reset planner
-        planner.reset()
         
         # --- GET TARGET RESPONSE ---
         state = state.add_message(best_cand)
@@ -201,9 +202,6 @@ def main():
         state = state.add_message(response)
 
         # --- SAVE RESULTS ---
-
-        # print(records)
-        print(results)
 
         save_path = os.path.join(path, f"turn_{turn}.json")
         _log(f"Saving records to path ({save_path}) ... ({time.time()-t0:.3f})")

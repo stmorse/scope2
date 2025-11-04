@@ -23,7 +23,6 @@ DEFAULT_SENTIMENT_MODEL = "lxyuan/distilbert-base-multilingual-cased-sentiments-
 
 # determined at module load
 device = torch.device("cuda:0") if torch.cuda.is_available() else torch.device("cpu")
-print(f"[DEBUG] Device: {device}")
 
 
 class RewardFunction(ABC):
@@ -84,20 +83,30 @@ class NLIReward(RewardFunction):
 
         return embedding, score
     
+    # def embed_and_score(self, state, agent=0):
+    #     """
+    #     Compute embedding (for final agent utterance) and score (aggregated)
+    #     """
+
+    #     # TODO: include \ell_0 (persona)
+
+    #     total_score = 0
+    #     for utterance in state.get_messages_from_agent(agent):
+    #         embedding, score = self.embed_and_score_single(utterance)
+    #         total_score += score
+
+    #     # returns final embedding
+    #     return embedding, total_score
+
     def embed_and_score(self, state, agent=0):
         """
-        Compute embedding (for final agent utterance) and score (aggregated)
+        Computes embedding and score for full conversation, 
+        includes valence (`valence` should be on -1 to 1)
         """
 
-        # TODO: include \ell_0 (persona)
-
-        total_score = 0
-        for utterance in state.get_messages_from_agent(agent):
-            embedding, score = self.embed_and_score_single(utterance)
-            total_score += score
-
-        # returns final embedding
-        return embedding, total_score
+        premise = " ".join(state.get_messages_from_agent(agent=agent))
+        embedding, score = self.embed_and_score_single(premise)
+        return embedding, score
 
     def calculate_reward(self, state, ):
         # for now just get the last message of Agent 0

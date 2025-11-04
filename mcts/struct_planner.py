@@ -159,12 +159,19 @@ class StructPlanner:
         return child
 
     def _rollout(self, path, state):
-        """Simulate a conversation along this path"""
+        """
+        Simulate a conversation along this path and record the specific
+        persuader / target clusters and rewards we see
+        """
 
         self._log("\nRollout...\n")
 
         # keep a record of (k, m, r_t) parallel to this path
         rec = []
+
+        # this is starting reward
+        # TODO: need to fix this
+        L_prev = 0
 
         # iterate down this path of actions
         for node in path:
@@ -187,13 +194,15 @@ class StructPlanner:
             state = state.add_message(target_response)
 
             # add this pair to the node and get its cluster assignments and score
-            k, m, r = node.add_response_pair(state)
+            k, m, L = node.add_response_pair(state)
+            r = L - L_prev
 
             self._log(f"Response pair:\n{persuader_response}\n{target_response}")
             self._log(f"rec: {(k, m, r)}")
 
             # update record
             rec.append((k, m, r))
+            L_prev = L
 
         # this list runs t=0,...,T-1
         return rec, state
@@ -201,12 +210,12 @@ class StructPlanner:
     def _backprop(self, path, rec):
         """Backprop rewards from rec (k, m, r_t) through path"""
         G = 0.0
-        for node, (k, m, rt) in zip(reversed(path), reversed(rec)):
+        for node, (k, m, r) in zip(reversed(path), reversed(rec)):
             # NOTE:
             # at last node (T-1), this gives G=r_{T-1}
             # at second to last, we have G=r_{T-2}+decay*r_{T-1} ...
             # at t, we have G_t = \sum_{u=t}^{T-1} decay^{u-t} r_t
-            G = rt + self.decay * G
+            G = r + self.decay * G
             node.update(k, m, G)
 
     

@@ -255,7 +255,7 @@ class OLNode:
         
         # global totals
         self.visits = 0
-        self.total_reward = 0
+        # self.total_reward = 0
         self.q0 = 0.0   # prior on Q(a)
 
         # for now we are forcing (K,M) = (2,3)
@@ -284,33 +284,41 @@ class OLNode:
         """Check if this is a terminal node (reached max depth)."""
         return self.depth >= max_depth
 
-    def get_a_and_q(self):
-        """Get a*, Q(a*) for this node."""
-        if self.visits == 0:
-            return None, self.q0
-        
+    def get_k_and_q(self):
+        """
+        Compute the persuader cluster k with highest Qk (expected return for k)
+        Note Q(s,a) = max_k Q_k
+        Return k*, Q(s,a)
+        """
+
+        # compute qk = expected return for cluster k        
         wk = np.sum(self.wkm, axis=1)
         nk = np.sum(self.nkm, axis=1)
 
-        # handle zero visit cases
-        nk[np.where(nk == 0)] = -1000000
-
-        qk = wk / nk
-
-        kstar = np.argmax(qk)
-        qstar = qk[kstar]
+        if np.all(nk == 0):
+            return None, self.q0
+        
+        # (safely) compute wk/nk, mark zero-visit as -inf
+        qk = np.full(wk.shape, -np.inf, dtype=float)
+        mask = nk != 0
+        qk[mask] = wk[mask] / nk[mask]
+        
+        # compute kstar, qstar
+        kstar = int(np.argmax(qk))
+        qstar = float(qk[kstar])
 
         print(f"[DEBUG] GET Q:  wk {wk} nk {nk} kstar {kstar} qstar {qstar}")
 
         return kstar, qstar
     
     def get_q(self):
-        _, q = self.get_a_and_q()
+        _, q = self.get_k_and_q()
         return q
     
-    def uct_value(self, exploration_constant: float = math.sqrt(2)):
+    def uct_value(self, exploration_constant: float = 1.414):
         """
         Calculate UCT (Upper Confidence Tree) value for this node.
+        Called by parent node during selection phase of MCTS.
 
         Q(a) = max_k Q_k
         P(a | s) = probability of coming to this node
@@ -327,7 +335,7 @@ class OLNode:
         if self.visits == 0:
             return float('inf')  # Unvisited nodes have highest priority
         
-        # if no parent, UCT reduces to Q(a)
+        # if no parent, UCT reduces to Q(s,a)
         if self.parent is None or self.parent.visits == 0:
             return self.get_q()
         
@@ -344,6 +352,7 @@ class OLNode:
     
     def select_best_child(self, exploration_constant: float = math.sqrt(2)):
         """Select child with highest UCT value."""
+
         if not self.children:
             raise ValueError("Cannot select child from node with no children")
         
@@ -364,21 +373,17 @@ class OLNode:
         return child
     
     def update(self, k, m, G):
-        """Update node statistics for a (persuader, target) pair."""
+        """
+        Update node statistics for a (persuader, target) pair.
+        Called during backprop phase of MCTS
+        """
 
         # update global counts
         self.visits += 1
-        self.total_reward += G
 
         # update for this k->m pair
         self.nkm[k, m] += 1
         self.wkm[k, m] += G
-    
-    def backpropagate(self, reward: float):
-        """Backpropagate reward up the tree."""
-        self.update(reward)
-        if self.parent:
-            self.parent.backpropagate(reward)
 
     def add_response_pair(self, state):
         # add last two messages in state to the bank of responses 
@@ -386,14 +391,14 @@ class OLNode:
         print(f"adding response pair for state: {state.messages}")
 
         k, _ = self.persuader_bank.add_response(state)
-        m, r = self.target_bank.add_response(state)
+        m, L = self.target_bank.add_response(state)
 
-        return k, m, r
+        return k, m, L
 
     def get_best_persuader_candidate(self):
         """Get centroid of k = argmax_k Q_k"""
 
-        kstar, _ = self.get_a_and_q()
+        kstar, _ = self.get_k_and_q()
         centroid = self.persuader_bank.get_centroid_response(kstar)
         return centroid
 
@@ -402,7 +407,8 @@ class OLNode:
             new_arm_bonus: float = 0.1
         ):
         """
-        Return centroid response from persuader clusters using UCB
+        Select a centroid response from persuader clusters using UCB.
+        Called during rollout.
 
         Q_k = expected return over all target clusters
         S = total pulls of existing clusters at this node
@@ -458,8 +464,8 @@ class OLNode:
     
     def __repr__(self):
         return (
-            f"OLNode(depth={self.depth}, visits={self.visits}, "
-            f"total_reward={self.total_reward}, "
+            f"OLNode(depth={self.depth}, "
+            f"visits={self.visits}, "
             f"q={self.get_q():.3f}, "
             f"children={len(self.children)} "
             f"lever={self.lever})"
