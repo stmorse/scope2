@@ -10,6 +10,8 @@ import os
 import pickle
 import time
 
+from sklearn.decomposition import PCA
+
 from agent.agent import Agent
 from mcts.conversation_planner import ConversationPlanner
 from mcts.hierarchical_planner import HierarchicalPlanner
@@ -139,10 +141,27 @@ def main():
     
     _log(f"Initializing planner ... \n")
     if args.planner == "col":
+        # init the dim reduction (entailment)
+        data = np.load(f"{BASE_PATH}/{init["scenario"]}/epca_2.npz")
+        epca = PCA(n_components=data["components"].shape[0])
+        epca.components_ = data["components"]
+        epca.mean_ = data["mean"]
+        epca.explained_variance_ = data["explained_variance"]
+
+        # init the dim reduction (semantic)
+        data = np.load(f"{BASE_PATH}/{init["scenario"]}/spca_10.npz")
+        spca = PCA(n_components=data["components"].shape[0])
+        spca.components_ = data["components"]
+        spca.mean_ = data["mean"]
+        spca.explained_variance_ = data["explained_variance"]
+
+        # init the planner
         planner = StructPlanner(
             agents=agents,
             persuader_reward=TopicReward(topic_sentence=scenario["base"]),
             target_reward=reward_function,
+            persuader_dr=spca,
+            target_dr=epca,
             max_depth=init["depth"],
             branching_factor=len(levers),
             generations_per_node=5,

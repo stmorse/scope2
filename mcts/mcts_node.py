@@ -246,7 +246,8 @@ class OLNode:
     """
 
     def __init__(self, lever: str, parent: None, p: float, depth: None,
-                 persuader_reward: None, target_reward: None):
+                 persuader_reward: None, target_reward: None,
+                 persuader_dr: None, target_dr: None):
         self.lever = lever
         self.parent = parent
         self.depth = depth
@@ -265,9 +266,15 @@ class OLNode:
 
         # stores text + clusters of persuader and targets
         self.persuader_bank = ResponseBank(
-            agent=1, max_clusters=self.K, reward_model=persuader_reward)
+            agent=1, max_clusters=self.K, 
+            reward_model=persuader_reward,
+            dr_model=persuader_dr
+        )
         self.target_bank = ResponseBank(
-            agent=0, max_clusters=self.M, reward_model=target_reward)
+            agent=0, max_clusters=self.M, 
+            reward_model=target_reward,
+            dr_model=target_dr
+        )
 
         # returns matrix (W_{k->m}).  entry is total return for k->m
         self.wkm = np.zeros((self.K, self.M))
@@ -367,7 +374,9 @@ class OLNode:
         child = OLNode(
             parent=self, lever=lever, p=self.p, depth=self.depth+1,
             persuader_reward=self.persuader_bank.reward_model,
-            target_reward=self.target_bank.reward_model
+            target_reward=self.target_bank.reward_model,
+            persuader_dr=self.persuader_bank.dr_model,
+            target_dr=self.target_bank.dr_model,
         )
         self.children.append(child)
         return child
@@ -449,15 +458,11 @@ class OLNode:
         # find selected index
         kstar = np.argmax(kvals)
 
-        print(f"kvals: {kvals}")
-
         # if kstar is an existing cluster, return a centroid conditioning
         if kstar < first_zero:
             centroid = self.persuader_bank.get_centroid_response(kstar)
         else:
             centroid = None
-
-        print(f"centroid: {centroid} kstar: {kstar}")
 
         return centroid, kstar
     
@@ -476,17 +481,22 @@ class ResponseBank:
     Holds all responses within an action node for either persuader/target,
     and their cluster assignments.  Subclass for specific persuader/target behavior
     """
-    def __init__(self, agent: None, max_clusters=None, cluster_model=None, reward_model=None):
+    def __init__(self, 
+            agent: None, max_clusters=None, 
+            cluster_model=None, reward_model=None,
+            dr_model=None
+        ):
         # specify persuader / target
         self.agent = agent
         
         # raw texts
         self.responses = []     
         
-        # embedding / reward
+        # embedding / dimension reduction / reward
         self.reward_model = reward_model
-        self.embeddings = []    
-        
+        self.dr_model = dr_model
+        self.embeddings = []  
+
         # clustering
         self.max_clusters = max_clusters
         self.cluster_model = cluster_model
@@ -500,6 +510,7 @@ class ResponseBank:
 
         # find embeddings
         embedding, score = self.reward_model.embed_and_score(state)
+        embedding = self.dr_model.transform(embedding.reshape((1,-1)))
         self.embeddings.append(embedding)
 
         # -- update model --

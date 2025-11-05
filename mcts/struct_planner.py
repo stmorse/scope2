@@ -18,6 +18,8 @@ from logging import Logger
 import random
 from typing import List, Tuple
 
+from sklearn.decomposition import PCA
+
 from .mcts_node import OLNode, ConversationState
 from .reward_functions import RewardFunction, NLIReward, TopicReward
 
@@ -28,6 +30,8 @@ class StructPlanner:
             agents: dict = None,
             persuader_reward: RewardFunction = None,
             target_reward: RewardFunction = None,
+            persuader_dr: PCA = None,
+            target_dr: PCA = None,
             max_depth: int = 3,
             branching_factor: int = 3,
             generations_per_node: int = 5,
@@ -42,6 +46,8 @@ class StructPlanner:
         # rewards / embedders
         self.persuader_reward = persuader_reward
         self.target_reward = target_reward
+        self.persuader_dr = persuader_dr
+        self.target_dr = target_dr
 
         # tree hyperparams
         self.max_depth = max_depth
@@ -76,7 +82,9 @@ class StructPlanner:
         root = OLNode(
             parent=None, lever=None, p=1./len(self.levers), depth=0,
             persuader_reward=self.persuader_reward,
-            target_reward=self.target_reward
+            target_reward=self.target_reward,
+            persuader_dr=self.persuader_dr,
+            target_dr=self.target_dr,
         )
 
         for i in range(self.num_simulations):
@@ -216,8 +224,6 @@ class StructPlanner:
         print("Backprop ...\n")
         G = 0.0
         for node, (k, m, r) in zip(reversed(path), reversed(rec)):
-            
-            
             # NOTE:
             # at last node (T-1), this gives G=r_{T-1}
             # at second to last, we have G=r_{T-2}+decay*r_{T-1} ...
